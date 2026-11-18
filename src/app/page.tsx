@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import type { PageLayout } from "@/lib/layout";
 import type { Line } from "./searchable-pdf";
 
 type Status = "pending" | "render" | "ocr" | "text" | "done" | "error";
@@ -30,13 +31,14 @@ export default function Home() {
   const [error, setError] = useState("");
   const [elapsed, setElapsed] = useState(0);
   const [file, setFile] = useState<{ name: string; size: number } | null>(null);
-  const [exporting, setExporting] = useState(false);
+  const [exporting, setExporting] = useState<"pdf" | "epub" | null>(null);
   const [copied, setCopied] = useState(false);
   const [dragging, setDragging] = useState(false);
   const cancelled = useRef(false);
-  const source = useRef<{ name: string; bytes: ArrayBuffer } | null>(null);
+  const [lanes, setLanes] = useState(1);
+  const source = useRef<{ name: string; bytes: ArrayBuffer; title?: string; author?: string } | null>(null);
   const lines = useRef(new Map<number, Line[]>());
-  const current = useRef(0);
+  const layouts = useRef(new Map<number, PageLayout>());
 
   const update = (n: number, patch: Partial<Page>) =>
     setPages((ps) => ps.map((p) => (p.n === n ? { ...p, ...patch } : p)));
@@ -48,6 +50,7 @@ export default function Home() {
     setPages([]);
     setFile({ name: f.name, size: f.size });
     cancelled.current = false;
+    // eslint-disable-next-line react-hooks/purity -- runs in an event handler, not during render
     const t0 = performance.now();
     const timer = setInterval(() => setElapsed(performance.now() - t0), 250);
 
@@ -56,100 +59,152 @@ export default function Home() {
     const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
     pdfjs.GlobalWorkerOptions.workerSrc = "/vendor/pdf.worker.min.mjs";
     const Tesseract = await import("tesseract.js");
-    let worker: Awaited<ReturnType<typeof Tesseract.createWorker>> | null = null;
+    const { textLayerLines } = await import("@/lib/pdf-text");
+    type OcrWorker = Awaited<ReturnType<typeof Tesseract.createWorker>>;
+    const workers: OcrWorker[] = [];
 
     try {
       setPhase("PDF 여는 중");
       const bytes = await f.arrayBuffer();
-      source.current = { name: f.name.replace(/\.pdf$/i, ""), bytes };
       lines.current = new Map();
+      layouts.current = new Map();
       // pdf.js detaches the buffer it is given, so hand it a copy and keep the original for export.
-      const pdf = await pdfjs.getDocument({ data: bytes.slice(0) }).promise;
+      const pdf = await pdfjs.getDocument({
+        data: bytes.slice(0),
+        // Scanned books are mostly JBIG2/JPEG2000 images; without the wasm decoders they render blank.
+        wasmUrl: "/vendor/pdfjs/wasm/",
+        cMapUrl: "/vendor/pdfjs/cmaps/",
+        standardFontDataUrl: "/vendor/pdfjs/standard_fonts/",
+        iccUrl: "/vendor/pdfjs/iccs/",
+        fontExtraProperties: true, // font names, for bold/italic in the EPUB
+      }).promise;
+      const info = (await pdf.getMetadata().catch(() => null))?.info as { Title?: string; Author?: string } | undefined;
+      source.current = { name: f.name.replace(/\.pdf$/i, ""), bytes, title: info?.Title?.trim() || undefined, author: info?.Author?.trim() || undefined };
       setPages(Array.from({ length: pdf.numPages }, (_, i) => ({ n: i + 1, status: "pending", progress: 0, text: "" })));
 
-      for (let n = 1; n <= pdf.numPages && !cancelled.current; n++) {
-        const start = performance.now();
-        current.current = n;
-        setPhase(`${n}페이지 처리 중`);
-        const page = await pdf.getPage(n);
+      // One tesseract worker per lane; each holds its own copy of the models (~100MB+), so cap it.
+      const laneCount = Math.max(1, Math.min(4, (navigator.hardwareConcurrency || 2) - 1));
+      setLanes(laneCount);
+      setPhase("처리 중");
+      let next = 1;
 
-        if (skipText) {
-          const tc = await page.getTextContent();
-          const text = tc.items.map((i) => ("str" in i ? i.str + (i.hasEOL ? "\n" : "") : "")).join("");
-          if (text.trim().length > 20) {
-            update(n, { status: "text", progress: 1, text, ms: performance.now() - start });
-            continue;
+      const lane = async () => {
+        let worker: OcrWorker | null = null;
+        let at = 0;
+        while (!cancelled.current) {
+          const n = next++;
+          if (n > pdf.numPages) return;
+          at = n;
+          const start = performance.now();
+          try {
+            const page = await pdf.getPage(n);
+            const vp = page.getViewport({ scale: 1 });
+            if (skipText) {
+              const tc = await page.getTextContent();
+              const text = tc.items.map((i) => ("str" in i ? i.str + (i.hasEOL ? "\n" : "") : "")).join("");
+              if (text.trim().length > 20) {
+                layouts.current.set(n, { n, width: vp.width, height: vp.height, lines: await textLayerLines(page, tc) });
+                update(n, { status: "text", progress: 1, text, ms: performance.now() - start });
+                continue;
+              }
+            }
+
+            update(n, { status: "render", progress: 0 });
+            const viewport = page.getViewport({ scale: SCALE });
+            const canvas = document.createElement("canvas");
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            await page.render({ canvas, viewport }).promise;
+
+            if (!worker) {
+              worker = await Tesseract.createWorker(lang.split("+"), Tesseract.OEM.LSTM_ONLY, {
+                workerPath: "/vendor/worker.min.js",
+                corePath: "/vendor",
+                langPath: "/models",
+                gzip: false,
+                logger: (m) => {
+                  if (m.status !== "recognizing text") return;
+                  const page = at;
+                  // Drop ticks for pages already marked done (progress can arrive late).
+                  setPages((ps) => ps.map((x) => (x.n === page && x.status === "ocr" ? { ...x, progress: m.progress } : x)));
+                },
+              });
+              workers.push(worker);
+            }
+
+            update(n, { status: "ocr" });
+            const { data } = await worker.recognize(canvas, {}, { text: true, blocks: true });
+            canvas.width = canvas.height = 0; // free the bitmap now, not at GC time
+            // Lines, not words: Korean words come back in fragments and PDF extractors insert spaces between them.
+            // Pictures produce garbage lines; real text scores 80+, picture noise mostly under 60.
+            const paras = (data.blocks ?? []).flatMap((b) => b.paragraphs).map((p) => p.lines.filter((l) => l.confidence >= MIN_CONFIDENCE));
+            const found = paras.flat();
+            const text = paras.filter((p) => p.length).map((p) => p.map((l) => l.text.trim()).join("\n")).join("\n\n");
+            lines.current.set(
+              n,
+              found.map(({ text, bbox }) => {
+                // shortcut: assumes an unrotated page; rotated pages get boxes in the wrong direction.
+                const [x, y] = viewport.convertToPdfPoint(bbox.x0, bbox.y1);
+                const [x2, y2] = viewport.convertToPdfPoint(bbox.x1, bbox.y0);
+                return { text: text.trim(), x, y, w: x2 - x, h: y2 - y };
+              }),
+            );
+            layouts.current.set(n, {
+              n,
+              width: vp.width,
+              height: vp.height,
+              lines: found.map(({ text, bbox }) => ({
+                runs: [{ text: text.trim().replace(/\s+/g, " ") }],
+                x0: bbox.x0 / SCALE,
+                x1: bbox.x1 / SCALE,
+                top: bbox.y0 / SCALE,
+                bottom: bbox.y1 / SCALE,
+                // Same convention as the searchable PDF (size = 0.8 x line height), so re-reading it agrees.
+                size: ((bbox.y1 - bbox.y0) / SCALE) * 0.8,
+              })),
+            });
+            update(n, { status: "done", progress: 1, text, ms: performance.now() - start });
+          } catch (e) {
+            console.error(`page ${n}`, e);
+            update(n, { status: "error", progress: 1, ms: performance.now() - start });
           }
         }
-
-        update(n, { status: "render", progress: 0 });
-        const viewport = page.getViewport({ scale: 2.5 }); // ~180 DPI
-        const canvas = document.createElement("canvas");
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        await page.render({ canvas, viewport }).promise;
-
-        if (!worker) {
-          setPhase("언어 모델 불러오는 중");
-          worker = await Tesseract.createWorker(lang.split("+"), Tesseract.OEM.LSTM_ONLY, {
-            workerPath: "/vendor/worker.min.js",
-            corePath: "/vendor",
-            langPath: "/models",
-            gzip: false,
-            logger: (m) => {
-              if (m.status !== "recognizing text") return;
-              const at = current.current;
-              // Drop ticks for pages already marked done (progress can arrive late).
-              setPages((ps) => ps.map((x) => (x.n === at && x.status === "ocr" ? { ...x, progress: m.progress } : x)));
-            },
-          });
-          setPhase(`${n}페이지 처리 중`);
-        }
-
-        update(n, { status: "ocr" });
-        const { data } = await worker.recognize(canvas, {}, { text: true, blocks: true });
-        // Lines, not words: Korean words come back in fragments and PDF extractors insert spaces between them.
-        const found = (data.blocks ?? []).flatMap((b) => b.paragraphs.flatMap((p) => p.lines));
-        lines.current.set(
-          n,
-          found.map(({ text, bbox }) => {
-            // shortcut: assumes an unrotated page; rotated pages get boxes in the wrong direction.
-            const [x, y] = viewport.convertToPdfPoint(bbox.x0, bbox.y1);
-            const [x2, y2] = viewport.convertToPdfPoint(bbox.x1, bbox.y0);
-            return { text: text.trim(), x, y, w: x2 - x, h: y2 - y };
-          }),
-        );
-        update(n, { status: "done", progress: 1, text: data.text, ms: performance.now() - start });
-      }
+      };
+      await Promise.all(Array.from({ length: laneCount }, lane));
+      // ?debug exposes the extracted line layout for offline tuning of the EPUB heuristics.
+      if (new URLSearchParams(location.search).has("debug")) Object.assign(window, { __layouts: [...layouts.current.values()] });
       setPhase(cancelled.current ? "중단됨" : "완료");
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setPages((ps) => ps.map((p) => (p.status === "render" || p.status === "ocr" ? { ...p, status: "error" } : p)));
       setPhase("오류");
     } finally {
-      await worker?.terminate();
+      await Promise.all(workers.map((w) => w.terminate()));
       clearInterval(timer);
       setElapsed(performance.now() - t0);
       setRunning(false);
     }
   }
 
-  async function downloadPdf() {
+  async function exportAs(kind: "pdf" | "epub") {
     if (!source.current) return;
-    setExporting(true);
+    const src = source.current;
+    setExporting(kind);
     try {
-      const { buildSearchablePdf } = await import("./searchable-pdf");
-      const out = await buildSearchablePdf(source.current.bytes, lines.current);
-      const url = URL.createObjectURL(new Blob([out as BlobPart], { type: "application/pdf" }));
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${source.current.name}-ocr.pdf`;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+      if (kind === "pdf") {
+        const { buildSearchablePdf } = await import("./searchable-pdf");
+        save(await buildSearchablePdf(src.bytes, lines.current), `${src.name}-ocr.pdf`, "application/pdf");
+      } else {
+        const { buildBlocks } = await import("@/lib/layout");
+        const { buildEpub, guessLang } = await import("@/lib/epub");
+        const blocks = buildBlocks([...layouts.current.values()]);
+        const epub = buildEpub({ title: src.title ?? src.name, author: src.author, lang: guessLang(blocks), blocks });
+        save(epub, `${src.name}.epub`, "application/epub+zip");
+      }
     } catch (e) {
-      setError(`PDF 생성 실패: ${e instanceof Error ? e.message : String(e)}`);
+      setError(`${kind.toUpperCase()} 생성 실패: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
-      setExporting(false);
+      setExporting(null);
     }
   }
 
@@ -164,7 +219,7 @@ export default function Home() {
   const overall = total ? pages.reduce((s, p) => s + p.progress, 0) / total : 0;
   const timed = pages.filter((p) => p.ms);
   const avg = timed.length ? timed.reduce((s, p) => s + p.ms!, 0) / timed.length : 0;
-  const eta = running && avg ? ((total - finished) * avg) / 1000 : 0;
+  const eta = running && avg ? ((total - finished) * avg) / lanes / 1000 : 0;
   const withText = pages.filter((p) => p.text.trim());
   const allText = withText.map((p) => `--- ${p.n} 페이지 ---\n${p.text.trim()}`).join("\n\n");
 
@@ -178,8 +233,8 @@ export default function Home() {
           <h1 className="text-xl font-semibold tracking-tight">PDF OCR</h1>
         </div>
         <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
-          스캔한 PDF에서 한글과 영어 텍스트를 뽑아 검색 가능한 PDF로 돌려줍니다. 파일은 서버로 올라가지 않고 이 브라우저 안에서만
-          처리됩니다.
+          스캔한 PDF에서 한글과 영어 텍스트를 뽑아 검색 가능한 PDF나 EPUB으로 만듭니다. EPUB은 줄바꿈 대신 문단 단위로 다시
+          짜고 제목과 굵게·기울임을 살립니다. 파일은 서버로 올라가지 않고 이 브라우저 안에서만 처리됩니다.
         </p>
       </header>
 
@@ -252,7 +307,8 @@ export default function Home() {
               <p className="truncate text-sm font-medium">{phase}</p>
               <p className="mt-0.5 text-xs text-zinc-500 tabular-nums">
                 {finished} / {total} 페이지 · {(elapsed / 1000).toFixed(1)}초
-                {avg > 0 && ` · 페이지당 ${(avg / 1000).toFixed(1)}초`}
+                {running && lanes > 1 && ` · ${lanes}개 병렬`}
+                {avg > 0 && ` · 페이지당 ${(avg / lanes / 1000).toFixed(2)}초`}
                 {eta > 0 && ` · 약 ${Math.ceil(eta)}초 남음`}
               </p>
             </div>
@@ -321,16 +377,19 @@ export default function Home() {
               <button onClick={copy} className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800">
                 {copied ? "복사됨" : "복사"}
               </button>
-              <button
-                onClick={downloadPdf}
-                disabled={running || exporting}
-                className="flex items-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-40 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
-              >
-                <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v12m0 0 4-4m-4 4-4-4M4 20h16" />
-                </svg>
-                {exporting ? "만드는 중…" : "검색 가능한 PDF"}
-              </button>
+              {(["pdf", "epub"] as const).map((k) => (
+                <button
+                  key={k}
+                  onClick={() => exportAs(k)}
+                  disabled={running || !!exporting}
+                  className="flex items-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-40 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
+                >
+                  <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v12m0 0 4-4m-4 4-4-4M4 20h16" />
+                  </svg>
+                  {exporting === k ? "만드는 중…" : k === "pdf" ? "검색 가능한 PDF" : "EPUB"}
+                </button>
+              ))}
             </div>
           </div>
           <div className="max-h-[28rem] overflow-auto px-5 py-4">
@@ -347,6 +406,18 @@ export default function Home() {
       )}
     </main>
   );
+}
+
+const SCALE = 2.5; // render scale for OCR, ~180 DPI
+const MIN_CONFIDENCE = 65;
+
+function save(bytes: Uint8Array, name: string, type: string) {
+  const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
 const TILE: Record<Status, string> = {

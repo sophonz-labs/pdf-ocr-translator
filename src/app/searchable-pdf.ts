@@ -1,5 +1,5 @@
 import fontkit from "@pdf-lib/fontkit";
-import { PDFDocument, popGraphicsState, pushGraphicsState, setTextRenderingMode, TextRenderingMode } from "pdf-lib";
+import { PDFDocument, popGraphicsState, pushGraphicsState, setCharacterSqueeze, setTextRenderingMode, TextRenderingMode } from "pdf-lib";
 
 /** A recognized line of text in PDF user-space points (origin bottom-left). */
 export type Line = { text: string; x: number; y: number; w: number; h: number };
@@ -22,10 +22,12 @@ export async function buildSearchablePdf(original: ArrayBuffer, lines: Map<numbe
     for (const { text, x, y, w, h } of list) {
       const unit = font.widthOfTextAtSize(text, 1);
       if (!unit || w <= 0) continue;
-      // Size the line to its box width so selection highlights line up with the image.
-      const size = Math.min(w / unit, h * 2);
+      // Font size from the line height (so heading sizes survive re-reading the PDF),
+      // then squeeze horizontally to the box width so selection lines up with the image.
+      const size = h * 0.8;
       try {
-        page.drawText(text, { x, y, size, font });
+        page.pushOperators(setCharacterSqueeze((w / (unit * size)) * 100));
+        page.drawText(text, { x, y: y + h * 0.18, size, font });
       } catch {
         // Glyph not in the font: skip that line rather than failing the whole export.
       }
