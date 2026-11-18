@@ -1,8 +1,11 @@
-// Copies worker/wasm files that must be served as static assets next to each other.
-import { cpSync, mkdirSync } from "node:fs";
+// Copies worker/wasm files that must be served as static assets (self-hosted, no CDN).
+import { cpSync, mkdirSync, rmSync } from "node:fs";
 
 const out = "public/vendor";
+rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
-for (const f of ["tesseract-worker.js", "tesseract-core.wasm", "tesseract-core-fallback.wasm"])
-  cpSync(`node_modules/tesseract-wasm/dist/${f}`, `${out}/${f}`);
+cpSync("node_modules/tesseract.js/dist/worker.min.js", `${out}/worker.min.js`);
+// The worker picks one of these by CPU feature support (OEM LSTM_ONLY).
+for (const v of ["", "-simd", "-relaxedsimd"])
+  cpSync(`node_modules/tesseract.js-core/tesseract-core${v}-lstm.wasm.js`, `${out}/tesseract-core${v}-lstm.wasm.js`);
 cpSync("node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs", `${out}/pdf.worker.min.mjs`);

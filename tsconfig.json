@@ -25,9 +25,6 @@
     "paths": {
       "@/*": [
         "./src/*"
-      ],
-      "tesseract-wasm-types": [
-        "./node_modules/tesseract-wasm/dist/index.d.ts"
       ]
     }
   },

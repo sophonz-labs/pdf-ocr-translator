@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "PDF OCR",
-  description: "브라우저에서 PDF를 OCR하는 tesseract-wasm 데모",
+  description: "스캔 PDF를 브라우저 안에서 OCR해 검색 가능한 PDF로 만든다",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
