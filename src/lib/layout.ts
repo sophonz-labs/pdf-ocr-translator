@@ -145,7 +145,13 @@ function bodySizeOf(pages: PageLayout[]) {
 /** Drops running headers/footers and page numbers: short lines at the page edges that are numbers or repeat across pages. */
 function stripMargins(pages: PageLayout[]): PageLayout[] {
   const edge = (p: PageLayout, l: TextLine) => l.bottom < p.height * 0.1 || l.top > p.height * 0.9;
-  const norm = (s: string) => s.toLowerCase().replace(/[0-9ivxlcdm]+\s*$|^\s*[0-9ivxlcdm]+\b/gi, "").replace(/\s+/g, " ").trim();
+  // Letters only: OCR renders the same running head as "78 : Title", "80 Title", "Title 1: 79".
+  const norm = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/[^\p{L}]+/gu, " ")
+      .replace(/^(?:[ivxlcdm]+ )+|(?: [ivxlcdm]+)+$/g, "")
+      .trim();
   const seen = new Map<string, number>();
   for (const p of pages)
     for (const k of new Set(p.lines.filter((l) => edge(p, l)).map((l) => norm(lineText(l)))))

@@ -26,13 +26,13 @@ const pages = [
     L("12", 220, 640, 230, 9),
   ]),
   page(2, [
-    L("Twenty Years After Communism", 100, 20, 300, 9),
+    L("13 : Twenty Years After Communism", 100, 20, 300, 9),
     L("and finishes on the second page.", 50, 60, 260),
     L("Third paragraph, indented, at the top of", 70, 73),
     L("the second page.", 50, 86, 150),
     L("13", 220, 640, 230, 9),
   ]),
-  page(3, [L("Twenty Years After Communism", 100, 20, 300, 9), L("Some closing text that is long enough here.", 50, 60), L("14", 220, 640, 230, 9)]),
+  page(3, [L("Twenty Years After Communism 1: 15", 100, 20, 300, 9), L("Some closing text that is long enough here.", 50, 60), L("14", 220, 640, 230, 9)]),
 ];
 
 const blocks = buildBlocks(pages);
