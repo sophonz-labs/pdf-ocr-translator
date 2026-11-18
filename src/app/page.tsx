@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import type { Line } from "./searchable-pdf";
 
 type Status = "pending" | "render" | "ocr" | "text" | "done" | "error";
 type Page = { n: number; status: Status; progress: number; text: string; ms?: number };
@@ -22,7 +23,10 @@ export default function Home() {
   const [phase, setPhase] = useState("");
   const [error, setError] = useState("");
   const [elapsed, setElapsed] = useState(0);
+  const [exporting, setExporting] = useState(false);
   const cancelled = useRef(false);
+  const source = useRef<{ name: string; bytes: ArrayBuffer } | null>(null);
+  const lines = useRef(new Map<number, Line[]>());
 
   const update = (n: number, patch: Partial<Page>) =>
     setPages((ps) => ps.map((p) => (p.n === n ? { ...p, ...patch } : p)));
@@ -44,7 +48,11 @@ export default function Home() {
 
     try {
       setPhase("PDF 여는 중");
-      const pdf = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+      const bytes = await file.arrayBuffer();
+      source.current = { name: file.name.replace(/\.pdf$/i, ""), bytes };
+      lines.current = new Map();
+      // pdf.js detaches the buffer it is given, so hand it a copy and keep the original for export.
+      const pdf = await pdfjs.getDocument({ data: bytes.slice(0) }).promise;
       setPages(Array.from({ length: pdf.numPages }, (_, i) => ({ n: i + 1, status: "pending", progress: 0, text: "" })));
 
       for (let n = 1; n <= pdf.numPages && !cancelled.current; n++) {
@@ -83,6 +91,18 @@ export default function Home() {
         const text = await ocr.getText((p: number) =>
           setPages((ps) => ps.map((x) => (x.n === n && x.status === "ocr" ? { ...x, progress: Math.min(p / 100, 1) } : x))),
         );
+        // Already recognized by getText, so this only reads back the boxes. Lines, not words:
+        // Korean words come back in fragments and extractors then insert spaces between them.
+        const boxes = await ocr.getTextBoxes("line");
+        lines.current.set(
+          n,
+          boxes.map(({ text, rect }) => {
+            // shortcut: assumes an unrotated page; rotated pages get boxes in the wrong direction.
+            const [x, y] = viewport.convertToPdfPoint(rect.left, rect.bottom);
+            const [x2, y2] = viewport.convertToPdfPoint(rect.right, rect.top);
+            return { text: text.trim(), x, y, w: x2 - x, h: y2 - y };
+          }),
+        );
         update(n, { status: "done", progress: 1, text, ms: performance.now() - start });
       }
       setPhase(cancelled.current ? "중단됨" : "완료");
@@ -95,6 +115,25 @@ export default function Home() {
       clearInterval(timer);
       setElapsed(performance.now() - t0);
       setRunning(false);
+    }
+  }
+
+  async function downloadPdf() {
+    if (!source.current) return;
+    setExporting(true);
+    try {
+      const { buildSearchablePdf } = await import("./searchable-pdf");
+      const out = await buildSearchablePdf(source.current.bytes, lines.current);
+      const url = URL.createObjectURL(new Blob([out as BlobPart], { type: "application/pdf" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${source.current.name}-ocr.pdf`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    } catch (e) {
+      setError(`PDF 생성 실패: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setExporting(false);
     }
   }
 
@@ -169,9 +208,18 @@ export default function Home() {
         <section className="mt-8">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold">결과</h2>
-            <button onClick={() => navigator.clipboard.writeText(allText)} className="rounded border px-3 py-1 text-sm">
-              복사
-            </button>
+            <div className="flex gap-2">
+              <button onClick={() => navigator.clipboard.writeText(allText)} className="rounded border px-3 py-1 text-sm">
+                복사
+              </button>
+              <button
+                onClick={downloadPdf}
+                disabled={running || exporting}
+                className="rounded bg-blue-600 px-3 py-1 text-sm text-white disabled:opacity-50"
+              >
+                {exporting ? "PDF 만드는 중…" : "검색 가능한 PDF 다운로드"}
+              </button>
+            </div>
           </div>
           <textarea readOnly value={allText} className="mt-2 h-96 w-full rounded border p-3 font-mono text-sm dark:bg-zinc-900" />
         </section>
