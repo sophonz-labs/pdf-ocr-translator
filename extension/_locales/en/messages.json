@@ -1,5 +1,11 @@
 {
-  "name": { "message": "PDF OCR - Image PDFs to searchable PDF and EPUB" },
-  "description": { "message": "Recognize text in image-only PDFs, make a searchable PDF and a paragraph-based EPUB, and translate it. Everything runs in your browser." },
-  "action_title": { "message": "Open PDF OCR" }
+  "name": {
+    "message": "PDF OCR - Image PDFs to searchable PDF and EPUB"
+  },
+  "description": {
+    "message": "Turn image-only PDFs into searchable PDFs and paragraph-based EPUBs, then translate them. Everything runs in your browser."
+  },
+  "action_title": {
+    "message": "Open PDF OCR"
+  }
 }
