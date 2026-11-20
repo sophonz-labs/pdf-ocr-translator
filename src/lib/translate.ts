@@ -56,27 +56,35 @@ function pieces(text: string): string[] {
   return out;
 }
 
+type Opts = {
+  /** Indices to translate; default all non-empty. */
+  only?: number[];
+  onProgress?: (done: number, total: number) => void;
+  /** Called as each paragraph lands (undefined = Google failed on it). */
+  onResult?: (i: number, t: string | undefined) => void;
+  fetch?: Fetcher;
+  signal?: AbortSignal;
+};
+
 /**
- * Translates every block's text, keeping block order. Blocks are batched with blank lines between them;
- * a batch whose answer comes back with a different paragraph count is redone one block at a time.
- * Returns one translation per block (undefined where Google failed, so the caller can keep the original).
+ * Translates paragraphs, batched with blank lines between them; a batch whose answer comes back
+ * with a different paragraph count is redone one paragraph at a time.
+ * Returns one translation per input (undefined where not asked or where Google failed).
  */
-export async function translateBlocks(
-  blocks: Block[],
-  target: string,
-  onProgress: (done: number, total: number) => void,
-  opts: { fetch?: Fetcher; signal?: AbortSignal } = {},
-) {
+export async function translateTexts(texts: string[], target: string, opts: Opts = {}) {
   const f = opts.fetch ?? fetch;
-  const texts = blocks.map((b) => lineText(b).replace(/\s+/g, " ").trim());
-  const out: (string | undefined)[] = texts.map((t) => (t ? undefined : ""));
+  const out: (string | undefined)[] = texts.map(() => undefined);
+  const set = (i: number, t: string | undefined) => {
+    out[i] = t;
+    opts.onResult?.(i, t);
+  };
+  const todo = (opts.only ?? texts.map((_, i) => i)).filter((i) => texts[i]?.trim());
 
   const batches: number[][] = [];
   let cur: number[] = [];
   let size = 0;
-  texts.forEach((t, i) => {
-    if (!t) return;
-    const b = bytes(t) + 6;
+  for (const i of todo) {
+    const b = bytes(texts[i]) + 6;
     if (cur.length && size + b > MAX_BYTES) {
       batches.push(cur);
       cur = [];
@@ -84,23 +92,23 @@ export async function translateBlocks(
     }
     cur.push(i);
     size += b;
-  });
+  }
   if (cur.length) batches.push(cur);
 
   const one = async (i: number) => {
     try {
       const parts = [];
       for (const p of pieces(texts[i])) parts.push(await translateText(p, target, f, opts.signal));
-      out[i] = parts.join(" ");
+      set(i, parts.join(" "));
     } catch (e) {
       if (opts.signal?.aborted) throw e;
+      set(i, undefined);
     }
   };
 
   let next = 0;
   let done = 0;
-  const total = batches.reduce((n, b) => n + b.length, 0);
-  onProgress(0, total);
+  opts.onProgress?.(0, todo.length);
   const lane = async () => {
     while (next < batches.length) {
       const batch = batches[next++];
@@ -112,15 +120,18 @@ export async function translateBlocks(
           if (opts.signal?.aborted) throw e;
         }
       }
-      if (parts?.length === batch.length) batch.forEach((i, k) => (out[i] = parts[k].trim()));
+      if (parts?.length === batch.length) batch.forEach((i, k) => set(i, parts[k].trim()));
       else for (const i of batch) await one(i);
       done += batch.length;
-      onProgress(done, total);
+      opts.onProgress?.(done, todo.length);
     }
   };
   await Promise.all(Array.from({ length: Math.min(LANES, batches.length) }, lane));
   return out;
 }
+
+/** The text sent for translation for each block. */
+export const blockTexts = (blocks: Block[]) => blocks.map((b) => lineText(b).replace(/\s+/g, " ").trim());
 
 /** Translated copies of the blocks: "replace" swaps the text, "both" keeps the original and adds the translation below it. */
 export function applyTranslations(blocks: Block[], tr: (string | undefined)[], mode: "replace" | "both"): Block[] {

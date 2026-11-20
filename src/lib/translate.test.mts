@@ -1,6 +1,6 @@
 // Run: pnpm test
 import assert from "node:assert/strict";
-import { applyTranslations, translateBlocks } from "./translate.ts";
+import { applyTranslations, blockTexts, translateTexts } from "./translate.ts";
 import type { Block } from "./layout.ts";
 
 const blocks: Block[] = [
@@ -23,18 +23,25 @@ function fake(drop: boolean) {
 }
 
 let a = fake(false);
-let tr = await translateBlocks(blocks, "ko", () => {}, { fetch: a.f });
+const texts = blockTexts(blocks);
+let tr = await translateTexts(texts, "ko", { fetch: a.f });
 assert.deepEqual(tr, ["ONE", "PLAIN IT", "ALL BOLD"]);
 assert.equal(a.calls.length, 1, "one batched request");
 
 a = fake(true);
-tr = await translateBlocks(blocks, "ko", () => {}, { fetch: a.f });
+const seen: number[] = [];
+tr = await translateTexts(texts, "ko", { fetch: a.f, onResult: (i) => seen.push(i) });
 assert.deepEqual(tr, ["ONE", "PLAIN IT", "ALL BOLD"]);
 assert.equal(a.calls.length, 4, "mismatched batch redone per block");
+assert.deepEqual(seen.sort(), [0, 1, 2]);
+
+a = fake(false);
+tr = await translateTexts(texts, "ko", { fetch: a.f, only: [2] });
+assert.deepEqual(tr, [undefined, undefined, "ALL BOLD"]);
 
 const failing = async () => new Response("", { status: 500 });
 // shortcut: retries sleep 1s+2s, so this case takes ~3s per block; keep it to one block.
-tr = await translateBlocks(blocks.slice(0, 1), "ko", () => {}, { fetch: failing });
+tr = await translateTexts(["One"], "ko", { fetch: failing });
 assert.deepEqual(tr, [undefined]);
 
 const both = applyTranslations(blocks, ["하나", "평범", "모두 굵게"], "both");

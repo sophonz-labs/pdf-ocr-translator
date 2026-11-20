@@ -3,7 +3,8 @@
 import { useRef, useState } from "react";
 import type { PageLayout } from "@/lib/layout";
 import type { Line } from "./searchable-pdf";
-import { TARGETS } from "@/lib/translate";
+import { save } from "./save";
+import { jobFromEpub, Translator, type Job } from "./translator";
 
 type Status = "pending" | "render" | "ocr" | "text" | "done" | "error";
 type Page = { n: number; status: Status; progress: number; text: string; ms?: number };
@@ -34,9 +35,7 @@ export default function Home() {
   const [file, setFile] = useState<{ name: string; size: number } | null>(null);
   const [exporting, setExporting] = useState<"pdf" | "epub" | null>(null);
   const [copied, setCopied] = useState(false);
-  const [trTarget, setTrTarget] = useState(""); // "" = no translation
-  const [trMode, setTrMode] = useState<"replace" | "both">("both");
-  const [trProgress, setTrProgress] = useState<[number, number] | null>(null);
+  const [job, setJob] = useState<Job | null>(null);
   const [dragging, setDragging] = useState(false);
   const cancelled = useRef(false);
   const [lanes, setLanes] = useState(1);
@@ -201,27 +200,49 @@ export default function Home() {
       } else {
         const { buildBlocks } = await import("@/lib/layout");
         const { buildEpub, guessLang } = await import("@/lib/epub");
-        let blocks = buildBlocks([...layouts.current.values()]);
-        let lang = guessLang(blocks);
-        let suffix = "";
-        if (trTarget) {
-          const { translateBlocks, applyTranslations } = await import("@/lib/translate");
-          const tr = await translateBlocks(blocks, trTarget, (d, t) => setTrProgress([d, t]));
-          const failed = tr.filter((t) => t === undefined).length;
-          if (failed) setError(`번역 실패 ${failed}개 문단은 원문으로 남겼습니다.`);
-          blocks = applyTranslations(blocks, tr, trMode);
-          if (trMode === "replace") lang = trTarget;
-          suffix = `.${trTarget}`;
-        }
-        const epub = buildEpub({ title: src.title ?? src.name, author: src.author, lang, trLang: trTarget, blocks });
-        save(epub, `${src.name}${suffix}.epub`, "application/epub+zip");
+        const blocks = buildBlocks([...layouts.current.values()]);
+        const epub = buildEpub({ title: src.title ?? src.name, author: src.author, lang: guessLang(blocks), blocks });
+        save(epub, `${src.name}.epub`, "application/epub+zip");
       }
     } catch (e) {
       setError(`${kind.toUpperCase()} 생성 실패: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setExporting(null);
-      setTrProgress(null);
     }
+  }
+
+  /** Hands the OCR result to the translator as an EPUB job. */
+  async function toTranslator() {
+    const src = source.current;
+    if (!src) return;
+    const { buildBlocks } = await import("@/lib/layout");
+    const { buildEpub, guessLang } = await import("@/lib/epub");
+    const { applyTranslations, blockTexts } = await import("@/lib/translate");
+    const blocks = buildBlocks([...layouts.current.values()]);
+    const texts = blockTexts(blocks);
+    const keep = texts.map((t, i) => (t ? i : -1)).filter((i) => i >= 0);
+    setJob({
+      name: src.name,
+      segments: keep.map((i) => ({ tag: blocks[i].kind, text: texts[i] })),
+      build: (tr, mode, lang) => {
+        const all: (string | undefined)[] = Array(blocks.length);
+        keep.forEach((i, k) => (all[i] = tr[k]));
+        const out = applyTranslations(blocks, all, mode);
+        return buildEpub({ title: src.title ?? src.name, author: src.author, lang: mode === "replace" ? lang : guessLang(blocks), trLang: lang, blocks: out });
+      },
+    });
+    requestAnimationFrame(() => document.getElementById("translate")?.scrollIntoView({ behavior: "smooth" }));
+  }
+
+  async function openFile(f: File) {
+    if (/\.epub$/i.test(f.name)) {
+      try {
+        setJob(await jobFromEpub(f));
+        requestAnimationFrame(() => document.getElementById("translate")?.scrollIntoView({ behavior: "smooth" }));
+      } catch (e) {
+        setError(`EPUB을 읽지 못했습니다: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    } else if (f.type === "application/pdf") run(f);
   }
 
   async function copy() {
@@ -264,7 +285,7 @@ export default function Home() {
           e.preventDefault();
           setDragging(false);
           const f = e.dataTransfer.files[0];
-          if (f?.type === "application/pdf") run(f);
+          if (f) openFile(f);
         }}
         className={`group flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed px-6 py-10 text-center transition focus-within:ring-2 focus-within:ring-blue-500/40 ${
           dragging
@@ -274,20 +295,20 @@ export default function Home() {
       >
         <input
           type="file"
-          accept="application/pdf"
+          accept="application/pdf,.epub,application/epub+zip"
           disabled={running}
           className="sr-only"
           onChange={(e) => {
             const f = e.target.files?.[0];
             e.target.value = "";
-            if (f) run(f);
+            if (f) openFile(f);
           }}
         />
         <svg aria-hidden viewBox="0 0 24 24" className="h-8 w-8 text-zinc-400 transition group-hover:text-zinc-600 dark:group-hover:text-zinc-300" fill="none" stroke="currentColor" strokeWidth={1.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 16V4m0 0-4 4m4-4 4 4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
         </svg>
-        <p className="mt-3 text-sm font-medium">PDF를 끌어다 놓거나 클릭해서 선택</p>
-        <p className="mt-1 text-xs text-zinc-500">{file ? `${file.name} · ${formatSize(file.size)}` : "스캔본, 사진 PDF 모두 가능"}</p>
+        <p className="mt-3 text-sm font-medium">PDF나 EPUB을 끌어다 놓거나 클릭해서 선택</p>
+        <p className="mt-1 text-xs text-zinc-500">{file ? `${file.name} · ${formatSize(file.size)}` : "PDF는 OCR, EPUB은 바로 번역으로"}</p>
       </label>
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
@@ -393,6 +414,9 @@ export default function Home() {
               <button onClick={copy} className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800">
                 {copied ? "복사됨" : "복사"}
               </button>
+              <button onClick={toTranslator} disabled={running} className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm hover:bg-zinc-50 disabled:opacity-40 dark:border-zinc-700 dark:hover:bg-zinc-800">
+                번역
+              </button>
               {(["pdf", "epub"] as const).map((k) => (
                 <button
                   key={k}
@@ -403,47 +427,10 @@ export default function Home() {
                   <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v12m0 0 4-4m-4 4-4-4M4 20h16" />
                   </svg>
-                  {exporting === k
-                    ? k === "epub" && trProgress
-                      ? `번역 중 ${trProgress[0]}/${trProgress[1]}`
-                      : "만드는 중…"
-                    : k === "pdf"
-                      ? "검색 가능한 PDF"
-                      : "EPUB"}
+                  {exporting === k ? "만드는 중…" : k === "pdf" ? "검색 가능한 PDF" : "EPUB"}
                 </button>
               ))}
             </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-zinc-200 px-5 py-2.5 text-xs text-zinc-500 dark:border-zinc-800">
-            <label className="flex items-center gap-1.5">
-              EPUB 번역
-              <select
-                value={trTarget}
-                onChange={(e) => setTrTarget(e.target.value)}
-                disabled={!!exporting}
-                className="rounded-md border border-zinc-200 bg-transparent px-1.5 py-1 text-xs text-zinc-900 dark:border-zinc-700 dark:text-zinc-100"
-              >
-                <option value="">안 함</option>
-                {TARGETS.map(([code, name]) => (
-                  <option key={code} value={code}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {trTarget && (
-              <select
-                aria-label="번역 배치"
-                value={trMode}
-                onChange={(e) => setTrMode(e.target.value as "replace" | "both")}
-                disabled={!!exporting}
-                className="rounded-md border border-zinc-200 bg-transparent px-1.5 py-1 text-xs text-zinc-900 dark:border-zinc-700 dark:text-zinc-100"
-              >
-                <option value="both">원문 아래 번역</option>
-                <option value="replace">번역만</option>
-              </select>
-            )}
-            {trTarget && <span>Google 번역(무료, New). 문단 텍스트가 Google로 전송됩니다.</span>}
           </div>
           <div className="max-h-[28rem] overflow-auto px-5 py-4">
             {withText.map((p) => (
@@ -457,21 +444,14 @@ export default function Home() {
           </div>
         </section>
       )}
+
+      <Translator job={job} setJob={setJob} />
     </main>
   );
 }
 
 const SCALE = 2.5; // render scale for OCR, ~180 DPI
 const MIN_CONFIDENCE = 65;
-
-function save(bytes: Uint8Array, name: string, type: string) {
-  const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = name;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 10_000);
-}
 
 const TILE: Record<Status, string> = {
   pending: "bg-zinc-100 text-zinc-400 ring-1 ring-zinc-200 ring-inset dark:bg-zinc-800 dark:text-zinc-500 dark:ring-zinc-700",
