@@ -4,20 +4,20 @@ import { SiteHeader, TOOLS } from "@/components/site";
 
 const FEATURES = [
   {
-    title: "서버 없이, 브라우저 안에서",
-    body: "Tesseract OCR과 pdf.js의 JBIG2·JPEG2000 디코더가 WebAssembly로 돌아갑니다. 책 파일은 이 기기를 떠나지 않습니다.",
+    title: "브라우저에서 모두 처리",
+    body: "OCR부터 PDF·EPUB 생성까지 이 브라우저 안에서 처리합니다. 번역할 때만 문단 텍스트가 Google 번역으로 전송됩니다.",
   },
   {
-    title: "줄이 아니라 문단으로",
-    body: "들여쓰기와 줄 간격으로 문단을 다시 잇고, 쪽 머리말과 쪽 번호를 걷어 내고, 줄 끝에서 끊긴 단어를 붙입니다. 쪽을 넘어가는 문단도 하나로 남습니다.",
+    title: "문단 단위 EPUB",
+    body: "줄바꿈이 아니라 문단 단위로 다시 잇습니다. 머리말과 쪽 번호를 빼고, 줄 끝에서 끊긴 단어를 붙이고, 쪽을 넘어가는 문단도 하나로 묶습니다.",
   },
   {
     title: "검색 가능한 PDF",
-    body: "원본 스캔 위에 보이지 않는 글자 층을 얹습니다. 생김새는 그대로이고, 찾기와 복사가 됩니다.",
+    body: "원본 위에 보이지 않는 텍스트 층을 얹습니다. 보이는 모습은 그대로이고, 찾기와 복사를 할 수 있습니다.",
   },
   {
     title: "검토하며 번역",
-    body: "Google 번역이 지원하는 243개 언어로 문단 단위 번역을 하고, 문단마다 고치거나 골라서 다시 번역한 뒤 EPUB으로 묶습니다.",
+    body: "243개 언어로 문단 단위 번역을 하고, 문단마다 고치거나 골라서 다시 번역한 뒤 EPUB으로 묶습니다.",
   },
 ];
 
@@ -34,9 +34,9 @@ export default function Landing() {
 
       <section className="mt-20 flex flex-col items-start gap-6 sm:mt-28">
         <AppIcon size={72} className="drop-shadow-[0_8px_24px_rgba(72,33,145,0.35)]" />
-        <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-balance sm:text-5xl">스캔한 책을, 읽을 수 있는 책으로.</h1>
+        <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-balance sm:text-5xl">PDF를 검색할 수 있는 문서로, 읽기 좋은 EPUB으로.</h1>
         <p className="max-w-xl text-lg leading-relaxed text-zinc-600 dark:text-zinc-400">
-          PDF를 OCR해 검색 가능한 PDF로, 문단이 살아 있는 EPUB으로 만들고, 원하는 언어로 번역합니다. 가입도 업로드도 없습니다.
+          PDF에서 텍스트를 인식해 검색 가능한 PDF와 문단 단위 EPUB을 만들고, 원하는 언어로 번역합니다. 모두 브라우저에서 처리합니다.
         </p>
         <div className="flex flex-wrap gap-3">
           <Link
@@ -71,7 +71,7 @@ export default function Landing() {
       </section>
 
       <section className="mt-24">
-        <h2 className="text-sm font-medium text-zinc-500">어떻게 다른가</h2>
+        <h2 className="text-sm font-medium text-zinc-500">기능</h2>
         <div className="mt-6 grid gap-x-10 gap-y-8 sm:grid-cols-2">
           {FEATURES.map((f) => (
             <div key={f.title}>

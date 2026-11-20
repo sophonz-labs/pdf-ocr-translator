@@ -37,7 +37,7 @@ export function SiteFooter() {
         <div className="flex flex-col gap-4">
           <SophonzLabs height={15} className="self-start text-zinc-900 dark:text-zinc-100" />
           <p className="max-w-xs leading-6 text-zinc-500">
-            스캔한 책을 읽을 수 있는 책으로. 모든 처리는 브라우저 안에서 일어나고, 파일은 서버로 올라가지 않습니다.
+            PDF OCR, 검색 가능한 PDF, EPUB 변환과 번역. 모두 브라우저에서 처리합니다.
           </p>
         </div>
         <nav className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3">
