@@ -38,6 +38,7 @@
     "**/*.mts"
   ],
   "exclude": [
+    "extension/dist",
     "node_modules"
   ]
 }

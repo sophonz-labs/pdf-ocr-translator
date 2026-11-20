@@ -45,3 +45,7 @@ next-env.d.ts
 # local test documents
 /*.pdf
 /*.epub
+
+# extension build output
+/extension/dist
+/extension/*.zip

@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "PDF OCR - 이미지 PDF를 검색 가능한 PDF와 EPUB으로",
+  "short_name": "PDF OCR",
+  "description": "이미지로 된 PDF에서 텍스트를 인식해 검색 가능한 PDF와 문단 단위 EPUB을 만들고 번역합니다. 모두 브라우저에서 처리합니다.",
+  "version": "0.0.0",
+  "homepage_url": "https://pdf-ocr-pi.vercel.app",
+  "icons": { "16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png", "128": "icons/icon-128.png" },
+  "action": { "default_title": "PDF OCR 열기", "default_icon": { "16": "icons/icon-16.png", "32": "icons/icon-32.png" } },
+  "side_panel": { "default_path": "index.html" },
+  "background": { "service_worker": "background.js" },
+  "permissions": ["sidePanel"],
+  "host_permissions": ["https://translate-pa.googleapis.com/*"],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  }
+}

@@ -19,6 +19,7 @@ const COLUMNS: { title: string; items: Item[] }[] = [
       { label: "sophonz terminal", href: "https://sophonz.io" },
       { label: "inobs.io", href: "https://inobs.io" },
       { label: "contact@sophonz.ai", href: "mailto:contact@sophonz.ai" },
+      { label: "개인정보처리방침", href: "/privacy" },
     ],
   },
 ];

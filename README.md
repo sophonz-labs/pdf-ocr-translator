@@ -24,3 +24,7 @@ bun run test   # layout/EPUB/translation unit tests
 ## Adding a language
 
 Drop `<lang>.traineddata` from tessdata_fast into `public/models/` and add an entry to `LANGS` in `src/app/page.tsx` (combine with `+`, e.g. `jpn+eng`).
+
+## Chrome extension
+
+`bun run build:extension` builds the side-panel extension into `extension/dist` and a store zip. Loading it locally and publishing: [extension/README.md](extension/README.md).

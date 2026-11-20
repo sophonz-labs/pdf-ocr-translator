@@ -21,6 +21,15 @@ const FEATURES = [
   },
 ];
 
+// Set once the extension is published (Vercel env NEXT_PUBLIC_CWS_URL).
+const STORE_URL = process.env.NEXT_PUBLIC_CWS_URL;
+
+const STEPS = [
+  { title: "Chrome에 추가", body: "Chrome 웹 스토어에서 PDF OCR을 설치합니다." },
+  { title: "툴바 아이콘 클릭", body: "브라우저 오른쪽에 사이드 패널이 열립니다. 다른 페이지를 보는 동안에도 작업이 이어집니다." },
+  { title: "파일을 놓기", body: "PDF를 놓으면 텍스트를 인식하고, 검색 가능한 PDF와 EPUB을 받고, 이어서 번역까지 합니다." },
+];
+
 export default function Landing() {
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 break-keep px-4 py-10 sm:py-14">
@@ -39,19 +48,36 @@ export default function Landing() {
           스캔본처럼 글자가 이미지로만 들어 있는 PDF에서 텍스트를 인식해 검색 가능한 PDF와 문단 단위 EPUB을 만들고, 원하는 언어로 번역합니다. 모두 브라우저에서 처리합니다.
         </p>
         <div className="flex flex-wrap gap-3">
-          <Link
-            href="/tools?tab=ocr"
-            className="rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
-          >
-            PDF 변환하기
-          </Link>
-          <Link href="/tools?tab=translate" className="rounded-lg border border-zinc-300 px-4 py-2.5 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800">
-            EPUB 번역하기
+          {STORE_URL ? (
+            <a
+              href={STORE_URL}
+              className="rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
+            >
+              Chrome에 추가
+            </a>
+          ) : (
+            <span className="rounded-lg bg-zinc-200 px-4 py-2.5 text-sm font-medium text-zinc-500 dark:bg-zinc-800">Chrome 웹 스토어 등록 준비 중</span>
+          )}
+          <Link href="/tools" className="rounded-lg border border-zinc-300 px-4 py-2.5 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800">
+            웹에서 바로 써 보기
           </Link>
         </div>
       </section>
 
-      <section className="mt-24 grid gap-4 sm:grid-cols-2">
+      <section className="mt-24">
+        <h2 className="text-sm font-medium text-zinc-500">Chrome 확장 프로그램으로 쓰기</h2>
+        <ol className="mt-6 grid gap-6 sm:grid-cols-3">
+          {STEPS.map((step, i) => (
+            <li key={step.title}>
+              <p className="text-xs text-zinc-400 tabular-nums">0{i + 1}</p>
+              <h3 className="mt-2 font-medium">{step.title}</h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">{step.body}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section className="mt-16 grid gap-4 sm:grid-cols-2">
         {TOOLS.map((t, i) => (
           <Link
             key={t.tab}

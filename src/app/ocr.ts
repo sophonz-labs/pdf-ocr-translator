@@ -93,6 +93,8 @@ export async function ocrPdf(
           if (!worker) {
             worker = await Tesseract.createWorker(opts.lang.split("+"), Tesseract.OEM.LSTM_ONLY, {
               workerPath: "/vendor/worker.min.js",
+              // Load the worker from its file, not a blob: URL (extension pages' CSP only allows 'self').
+              workerBlobURL: false,
               corePath: "/vendor",
               langPath: "/models",
               gzip: false,

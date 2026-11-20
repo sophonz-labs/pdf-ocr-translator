@@ -1,0 +1,8 @@
+@import "../src/app/globals.css";
+/* Tailwind scans from the CSS file's folder; the components live in src. */
+@source "../src";
+
+html,
+body {
+  height: 100%;
+}
