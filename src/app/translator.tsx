@@ -2,6 +2,8 @@
 
 import { useRef, useState, useSyncExternalStore } from "react";
 import { COMMON_LANGS, LANGS } from "@/lib/translate";
+import type { Lang } from "@/i18n";
+import { useLang, useT } from "@/i18n-context";
 import { save } from "./save";
 
 type Mode = "replace" | "both";
@@ -13,19 +15,22 @@ export type Job = {
 };
 type St = "" | "ok" | "fail" | "edit";
 
-export async function jobFromEpub(f: File): Promise<Job> {
+export async function jobFromEpub(f: File, noSegments: string): Promise<Job> {
   const { readEpub, writeEpub } = await import("@/lib/epub-io");
   const book = readEpub(new Uint8Array(await f.arrayBuffer()));
-  if (!book.segments.length) throw new Error("번역할 문단을 찾지 못했습니다");
+  if (!book.segments.length) throw new Error(noSegments);
   return { name: f.name.replace(/\.epub$/i, ""), segments: book.segments, build: (tr, mode, lang) => writeEpub(book, tr, mode, lang) };
 }
 
-const NAME_FIX: Record<string, string> = { "zh-CN": "중국어(간체)", "zh-TW": "중국어(번체)" };
-let names: { code: string; name: string }[] | null = null;
-/** Google's language codes with Korean names, sorted by name. Built on first use (client only). */
-function langNames() {
-  if (!names) {
-    const dn = new Intl.DisplayNames(["ko"], { type: "language", fallback: "code" });
+const NAME_FIX: Record<Lang, Record<string, string>> = {
+  en: { "zh-CN": "Chinese (Simplified)", "zh-TW": "Chinese (Traditional)" },
+  ko: { "zh-CN": "중국어(간체)", "zh-TW": "중국어(번체)" },
+};
+const names: Partial<Record<Lang, { code: string; name: string }[]>> = {};
+/** Google's language codes with names in the UI language, sorted by name. Built on first use (client only). */
+function langNames(lang: Lang) {
+  if (!names[lang]) {
+    const dn = new Intl.DisplayNames([lang], { type: "language", fallback: "code" });
     const of = (c: string) => {
       try {
         return dn.of(c) ?? c;
@@ -33,9 +38,9 @@ function langNames() {
         return c;
       }
     };
-    names = LANGS.map((code) => ({ code, name: NAME_FIX[code] ?? of(code) })).sort((a, b) => a.name.localeCompare(b.name, "ko"));
+    names[lang] = LANGS.map((code) => ({ code, name: NAME_FIX[lang][code] ?? of(code) })).sort((a, b) => a.name.localeCompare(b.name, lang));
   }
-  return names;
+  return names[lang];
 }
 
 function LangSelect({ label, value, onChange, auto, disabled }: { label: string; value: string; onChange: (v: string) => void; auto?: boolean; disabled?: boolean }) {
@@ -45,7 +50,9 @@ function LangSelect({ label, value, onChange, auto, disabled }: { label: string;
     () => true,
     () => false,
   );
-  const all = client ? langNames() : [];
+  const lang = useLang();
+  const t = useT().tr;
+  const all = client ? langNames(lang) : [];
   const opt = ({ code, name }: { code: string; name: string }) => (
     <option key={code} value={code}>
       {name} · {code}
@@ -55,11 +62,11 @@ function LangSelect({ label, value, onChange, auto, disabled }: { label: string;
     <label className="flex items-center gap-1.5 text-xs text-zinc-500">
       {label}
       <select value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} className={`${select} max-w-48 text-zinc-900 dark:text-zinc-100`}>
-        {auto && <option value="auto">자동 감지</option>}
+        {auto && <option value="auto">{t.auto}</option>}
         {client ? (
           <>
-            <optgroup label="자주 쓰는 언어">{COMMON_LANGS.map((c) => opt(all.find((l) => l.code === c)!))}</optgroup>
-            <optgroup label={`전체 ${all.length}개`}>{all.map(opt)}</optgroup>
+            <optgroup label={t.common}>{COMMON_LANGS.map((c) => opt(all.find((l) => l.code === c)!))}</optgroup>
+            <optgroup label={t.all(all.length)}>{all.map(opt)}</optgroup>
           </>
         ) : (
           value !== "auto" && <option value={value}>{value}</option>
@@ -74,13 +81,10 @@ const keys = new WeakMap<Job, number>();
 let lastKey = 0;
 const jobKey = (j: Job) => keys.get(j) ?? (keys.set(j, ++lastKey), lastKey);
 
-const FILTERS = [
-  ["all", "전체"],
-  ["todo", "미번역"],
-  ["fail", "실패"],
-  ["edit", "수정함"],
-] as const;
+const FILTERS = ["all", "todo", "fail", "edit"] as const;
 const PAGE = 30;
+// Rough display width for sizing textareas: CJK and Hangul take about two Latin columns.
+const width = (s: string) => s.length + (s.match(/[\u1100-\u11ff\u2e80-\u9fff\uac00-\ud7af\uff00-\uffef]/g)?.length ?? 0);
 
 const btn =
   "rounded-lg border border-zinc-200 px-3 py-1.5 text-sm hover:bg-zinc-50 disabled:opacity-40 dark:border-zinc-700 dark:hover:bg-zinc-800";
@@ -100,6 +104,9 @@ export function Translator({
   made: string | null;
   onUseMade: () => void;
 }) {
+  const all = useT();
+  const t = all.tr;
+  const epubFailed = all.ocr.epubFailed;
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -107,9 +114,9 @@ export function Translator({
     setError("");
     setLoading(true);
     try {
-      setJob(await jobFromEpub(f));
+      setJob(await jobFromEpub(f, t.noSegments));
     } catch (e) {
-      setError(`EPUB을 읽지 못했습니다: ${e instanceof Error ? e.message : String(e)}`);
+      setError(epubFailed(e instanceof Error ? e.message : String(e)));
     } finally {
       setLoading(false);
     }
@@ -134,11 +141,11 @@ export function Translator({
       {!job && made && (
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-blue-200 bg-blue-50/60 px-5 py-4 dark:border-blue-500/30 dark:bg-blue-500/10">
           <div className="min-w-0">
-            <p className="text-sm font-medium">PDF OCR 탭에서 만든 EPUB이 있습니다</p>
+            <p className="text-sm font-medium">{t.madeTitle}</p>
             <p className="truncate text-xs text-zinc-500">{made}</p>
           </div>
           <button className={primary} onClick={onUseMade}>
-            이 EPUB으로 번역 시작
+            {t.useMade}
           </button>
         </div>
       )}
@@ -162,8 +169,8 @@ export function Translator({
           }`}
         >
           {input}
-          <p className="text-sm font-medium">{loading ? "읽는 중…" : "EPUB을 끌어다 놓거나 클릭해서 선택"}</p>
-          <p className="mt-1 text-xs text-zinc-500">PDF는 &lsquo;PDF OCR&rsquo; 탭에서 EPUB으로 만든 뒤 &lsquo;EPUB 번역으로 이어가기&rsquo;를 누르면 여기로 이어집니다.</p>
+          <p className="text-sm font-medium">{loading ? t.reading : t.drop}</p>
+          <p className="mt-1 text-xs text-zinc-500">{t.dropHint}</p>
         </label>
       )}
       {error && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-400">{error}</p>}
@@ -172,14 +179,14 @@ export function Translator({
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-5 py-3 dark:border-zinc-800">
             <div className="min-w-0">
               <h2 className="truncate text-sm font-medium">{job.name}</h2>
-              <p className="text-xs text-zinc-500 tabular-nums">{job.segments.length.toLocaleString()}문단</p>
+              <p className="text-xs text-zinc-500 tabular-nums">{t.paragraphs(job.segments.length.toLocaleString())}</p>
             </div>
             <label className={`${btn} cursor-pointer`}>
-              {loading ? "읽는 중…" : "다른 EPUB 열기"}
+              {loading ? t.reading : t.openOther}
               {input}
             </label>
           </div>
-              <Review key={jobKey(job)} job={job} />
+          <Review key={jobKey(job)} job={job} />
         </section>
       )}
     </>
@@ -187,14 +194,15 @@ export function Translator({
 }
 
 function Review({ job }: { job: Job }) {
+  const t = useT().tr;
   const n = job.segments.length;
   const [source, setSource] = useState("auto");
-  const [target, setTarget] = useState("ko");
+  const [target, setTarget] = useState<string>(useLang()); // into the UI language unless changed
   const [mode, setMode] = useState<Mode>("both");
   const [tr, setTr] = useState<(string | undefined)[]>(() => Array(n).fill(undefined));
   const [st, setSt] = useState<St[]>(() => Array(n).fill(""));
   const [sel, setSel] = useState<Set<number>>(new Set());
-  const [filter, setFilter] = useState<(typeof FILTERS)[number][0]>("all");
+  const [filter, setFilter] = useState<(typeof FILTERS)[number]>("all");
   const [page, setPage] = useState(0);
   const [progress, setProgress] = useState<[number, number] | null>(null);
   const [notice, setNotice] = useState("");
@@ -232,7 +240,7 @@ function Review({ job }: { job: Job }) {
         },
       );
     } catch (e) {
-      if (!ctl.signal.aborted) setNotice(`번역 중단: ${e instanceof Error ? e.message : String(e)}`);
+      if (!ctl.signal.aborted) setNotice(t.stopped(e instanceof Error ? e.message : String(e)));
     } finally {
       abort.current = null;
       setProgress(null);
@@ -240,7 +248,7 @@ function Review({ job }: { job: Job }) {
   }
 
   function changeTarget(v: string) {
-    if (done && !confirm("번역 언어를 바꾸면 지금까지의 번역을 지웁니다. 계속할까요?")) return;
+    if (done && !confirm(t.changeTarget)) return;
     setTarget(v);
     setTr(Array(n).fill(undefined));
     setSt(Array(n).fill(""));
@@ -250,7 +258,7 @@ function Review({ job }: { job: Job }) {
     try {
       save(job.build(tr, mode, target), `${job.name}.${target}.epub`, "application/epub+zip");
     } catch (e) {
-      setNotice(`EPUB 생성 실패: ${e instanceof Error ? e.message : String(e)}`);
+      setNotice(t.buildFailed(e instanceof Error ? e.message : String(e)));
     }
   }
 
@@ -266,7 +274,7 @@ function Review({ job }: { job: Job }) {
   return (
     <div>
       <ol className="flex flex-wrap gap-x-5 gap-y-1 border-b border-zinc-200 px-5 py-2.5 text-xs dark:border-zinc-800">
-        {["불러오기", "번역", "검토·수정", "EPUB 만들기"].map((label, k) => (
+        {t.steps.map((label, k) => (
           <li key={label} className={k + 1 <= step ? "font-medium text-zinc-900 dark:text-zinc-100" : "text-zinc-400"}>
             <span
               className={`mr-1.5 inline-grid h-4 w-4 place-items-center rounded-full text-[10px] ${
@@ -281,20 +289,20 @@ function Review({ job }: { job: Job }) {
       </ol>
 
       <div className="flex flex-wrap items-center gap-2 px-5 pt-3">
-        <LangSelect label="원문" value={source} onChange={setSource} auto disabled={!!progress} />
+        <LangSelect label={t.source} value={source} onChange={setSource} auto disabled={!!progress} />
         <span aria-hidden className="text-zinc-400">→</span>
-        <LangSelect label="번역" value={target} onChange={changeTarget} disabled={!!progress} />
+        <LangSelect label={t.target} value={target} onChange={changeTarget} disabled={!!progress} />
         <span className="ml-auto text-xs text-zinc-500 tabular-nums">
-          번역 {done}/{n}
-          {failed > 0 && <span className="text-red-600"> · 실패 {failed}</span>}
+          {t.count(done, n)}
+          {failed > 0 && <span className="text-red-600"> · {t.failedCount(failed)}</span>}
         </span>
       </div>
       <div className="flex flex-wrap items-center gap-2 px-5 py-3">
         <button className={primary} disabled={!!progress || !todo.length} onClick={() => translate(todo)}>
-          미번역 {todo.length.toLocaleString()}개 번역
+          {t.translateTodo(todo.length.toLocaleString())}
         </button>
         <button className={btn} disabled={!!progress || !sel.size} onClick={() => translate([...sel].sort((a, b) => a - b))}>
-          선택 {sel.size}개 다시 번역
+          {t.retranslate(sel.size)}
         </button>
         {progress && (
           <>
@@ -302,7 +310,7 @@ function Review({ job }: { job: Job }) {
               {progress[0]}/{progress[1]}
             </span>
             <button className={btn} onClick={() => abort.current?.abort()}>
-              중지
+              {t.cancel}
             </button>
           </>
         )}
@@ -316,15 +324,16 @@ function Review({ job }: { job: Job }) {
 
       <div className="flex flex-wrap items-center gap-3 border-y border-zinc-200 px-5 py-2 text-xs dark:border-zinc-800">
         <label className="flex items-center gap-1.5">
-          <input type="checkbox" checked={allShown} onChange={() => setSel((s) => new Set(allShown ? [...s].filter((i) => !shown.includes(i)) : [...s, ...shown]))} />이 쪽 선택
+          <input type="checkbox" checked={allShown} onChange={() => setSel((s) => new Set(allShown ? [...s].filter((i) => !shown.includes(i)) : [...s, ...shown]))} />
+          {t.selectPage}
         </label>
         {sel.size > 0 && (
           <button className="text-zinc-500 underline" onClick={() => setSel(new Set())}>
-            선택 해제
+            {t.clear}
           </button>
         )}
-        <div role="radiogroup" aria-label="보기" className="ml-auto inline-flex rounded-md bg-zinc-100 p-0.5 dark:bg-zinc-800">
-          {FILTERS.map(([v, label]) => (
+        <div role="radiogroup" aria-label={t.view} className="ml-auto inline-flex rounded-md bg-zinc-100 p-0.5 dark:bg-zinc-800">
+          {FILTERS.map((v) => (
             <button
               key={v}
               role="radio"
@@ -335,7 +344,7 @@ function Review({ job }: { job: Job }) {
               }}
               className={`rounded px-2 py-1 ${filter === v ? "bg-white font-medium shadow-sm dark:bg-zinc-950" : "text-zinc-500"}`}
             >
-              {label}
+              {t.filters[v]}
             </button>
           ))}
         </div>
@@ -345,7 +354,7 @@ function Review({ job }: { job: Job }) {
         {shown.map((i) => (
           <li key={i} className="grid gap-2 px-5 py-3 sm:grid-cols-[auto_1fr_1fr]">
             <label className="flex items-start gap-2 pt-0.5 text-[11px] text-zinc-400 tabular-nums">
-              <input type="checkbox" checked={sel.has(i)} onChange={() => toggle(i)} aria-label={`${i + 1}번 선택`} />
+              <input type="checkbox" checked={sel.has(i)} onChange={() => toggle(i)} aria-label={t.select(i + 1)} />
               <span className="w-10">
                 {i + 1}
                 <br />
@@ -355,10 +364,10 @@ function Review({ job }: { job: Job }) {
             <p className="max-h-40 overflow-auto text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">{job.segments[i].text}</p>
             <div>
               <textarea
-                aria-label={`${i + 1}번 번역`}
+                aria-label={t.translation(i + 1)}
                 value={tr[i] ?? ""}
-                placeholder={st[i] === "fail" ? "번역 실패 · 직접 입력하거나 다시 번역" : "미번역 · 직접 입력할 수 있습니다"}
-                rows={Math.min(8, Math.max(2, Math.ceil(((tr[i] ?? job.segments[i].text).length || 1) / 45)))}
+                placeholder={st[i] === "fail" ? t.failPlaceholder : t.todoPlaceholder}
+                rows={Math.min(8, Math.max(2, Math.ceil(Math.max(width(tr[i] ?? ""), width(job.segments[i].text)) / 45)))}
                 onChange={(e) => {
                   const v = e.target.value;
                   setTr((a) => a.with(i, v || undefined));
@@ -371,26 +380,26 @@ function Review({ job }: { job: Job }) {
             </div>
           </li>
         ))}
-        {!shown.length && <li className="px-5 py-6 text-center text-sm text-zinc-500">해당하는 문단이 없습니다.</li>}
+        {!shown.length && <li className="px-5 py-6 text-center text-sm text-zinc-500">{t.none}</li>}
       </ul>
 
       <div className="flex flex-wrap items-center gap-2 border-t border-zinc-200 px-5 py-3 dark:border-zinc-800">
         <button className={btn} disabled={page === 0} onClick={() => setPage(page - 1)}>
-          이전
+          {t.prev}
         </button>
         <span className="text-xs text-zinc-500 tabular-nums">
           {page + 1} / {pages}
         </span>
         <button className={btn} disabled={page >= pages - 1} onClick={() => setPage(page + 1)}>
-          다음
+          {t.next}
         </button>
         <div className="ml-auto flex items-center gap-2">
-          <select aria-label="번역 배치" value={mode} onChange={(e) => setMode(e.target.value as Mode)} className={select}>
-            <option value="both">원문 아래 번역</option>
-            <option value="replace">번역만</option>
+          <select aria-label={t.layout} value={mode} onChange={(e) => setMode(e.target.value as Mode)} className={select}>
+            <option value="both">{t.both}</option>
+            <option value="replace">{t.replace}</option>
           </select>
           <button className={primary} disabled={!done || !!progress} onClick={build}>
-            EPUB 만들기
+            {t.build}
           </button>
         </div>
       </div>

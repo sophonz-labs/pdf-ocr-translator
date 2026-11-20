@@ -1,9 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  cacheComponents: true,
-  partialPrefetching: true,
+  // Static HTML for GitHub Pages: every route is /en/... or /ko/..., built ahead of time.
+  output: "export",
+  trailingSlash: true,
   turbopack: {
     rules: {
       "*.css": {

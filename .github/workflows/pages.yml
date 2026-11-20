@@ -1,0 +1,42 @@
+name: pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    # GitHub-hosted on purpose: this repo is public, and self-hosted runners must not run code from forks.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+      - run: bun run test
+      - run: bun run build
+        env:
+          NEXT_PUBLIC_CWS_URL: ${{ vars.CWS_URL }}
+      # Pushed to a branch rather than uploaded as a Pages artifact: the org's Actions artifact storage is full.
+      - name: publish to gh-pages
+        working-directory: out
+        run: |
+          touch .nojekyll
+          echo ocr.sophonz.com > CNAME
+          git init -q -b gh-pages
+          git add -A
+          git -c user.name=github-actions -c user.email=41898282+github-actions[bot]@users.noreply.github.com commit -qm "deploy ${GITHUB_SHA}"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" gh-pages

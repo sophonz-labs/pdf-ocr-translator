@@ -1,0 +1,284 @@
+// All UI text, in English and Korean. Server components read DICT[lang]; client components use useT() from i18n-context.
+export const LOCALES = ["en", "ko"] as const;
+export type Lang = (typeof LOCALES)[number];
+export const isLang = (v: unknown): v is Lang => LOCALES.includes(v as Lang);
+export const LANG_LABEL: Record<Lang, string> = { en: "English", ko: "한국어" };
+
+export const DEFAULT_LANG: Lang = "en";
+
+/** The language the user last picked, else English. Client only. */
+export function preferredLang(): Lang {
+  try {
+    const saved = localStorage.getItem("lang");
+    if (isLang(saved)) return saved;
+  } catch {}
+  return DEFAULT_LANG;
+}
+export function saveLang(l: Lang) {
+  try {
+    localStorage.setItem("lang", l);
+  } catch {}
+}
+
+const en = {
+  meta: {
+    title: "PDF OCR · sophonz labs",
+    description:
+      "Recognize text in image-only PDFs, then make a searchable PDF and a paragraph-based EPUB and translate it into 243 languages. Everything runs in your browser.",
+    tools: "Tools · PDF OCR",
+    privacy: "Privacy policy · PDF OCR",
+  },
+  home: "PDF OCR home",
+  langSwitch: "Language",
+  tools: {
+    ocr: {
+      label: "PDF OCR",
+      desc: "Extracts Korean and English text from scanned PDFs and makes a searchable PDF and a paragraph-based EPUB. The EPUB carries straight on to the translate tab.",
+    },
+    translate: {
+      label: "EPUB Translate",
+      desc: "Translates an EPUB paragraph by paragraph, lets you review and edit each one, then packs it back into an EPUB.",
+    },
+  },
+  landing: {
+    open: "Open tools",
+    title: "Turn image-only PDFs into searchable documents and EPUBs.",
+    lead: "Recognizes the text in PDFs whose pages are only pictures, such as scans, then makes a searchable PDF and a paragraph-based EPUB and translates it into the language you want. Everything runs in your browser.",
+    addToChrome: "Add to Chrome",
+    storeSoon: "Coming soon to the Chrome Web Store",
+    tryWeb: "Try it on the web",
+    stepsTitle: "Use it as a Chrome extension",
+    steps: [
+      { title: "Add to Chrome", body: "Install PDF OCR from the Chrome Web Store." },
+      { title: "Click the toolbar icon", body: "A side panel opens on the right. Work keeps going while you browse other pages." },
+      { title: "Drop a file", body: "Drop a PDF to recognize its text, download a searchable PDF and an EPUB, and go on to translate it." },
+    ],
+    featuresTitle: "Features",
+    features: [
+      {
+        title: "Everything in your browser",
+        body: "From OCR to building the PDF and EPUB, it all happens in this browser. Only when you translate is paragraph text sent to Google Translate.",
+      },
+      {
+        title: "Paragraph-based EPUB",
+        body: "Rejoins text by paragraph, not by line. Drops running heads and page numbers, mends words hyphenated at line ends, and keeps paragraphs that cross pages whole.",
+      },
+      { title: "Searchable PDF", body: "Lays an invisible text layer over the original. It looks the same, and you can find and copy text." },
+      {
+        title: "Translate with review",
+        body: "Translates paragraph by paragraph into 243 languages. Edit any paragraph or retranslate a selection, then pack it into an EPUB.",
+      },
+    ],
+  },
+  footer: {
+    blurb: "PDF OCR, searchable PDFs, EPUB conversion and translation. Everything runs in your browser.",
+    tools: "Tools",
+    openSource: "Open source",
+    source: "Source code",
+    privacy: "Privacy policy",
+  },
+  ocr: {
+    tablist: "Tools",
+    local: "Files never leave this browser.",
+    status: { pending: "Waiting", render: "Rendering", ocr: "Recognizing", text: "Text layer", done: "Done", error: "Error" },
+    langs: { "kor+eng": "Korean + English", kor: "Korean", eng: "English" } as Record<string, string>,
+    langGroup: "Recognition language",
+    drop: "Drop a PDF here or click to choose",
+    dropHint: "Scans and photo PDFs both work",
+    skipText: "Skip OCR on pages that already have text",
+    opening: "Opening PDF",
+    working: "Processing",
+    stopped: "Stopped",
+    done: "Done",
+    error: "Error",
+    stop: "Stop",
+    pages: (done: number, total: number) => `${done} / ${total} pages`,
+    secs: (s: string) => `${s}s`,
+    lanes: (n: number) => `${n} in parallel`,
+    perPage: (s: string) => `${s}s per page`,
+    eta: (s: number) => `about ${s}s left`,
+    progress: "Overall progress",
+    pageStates: "Page status",
+    page: (n: number) => `Page ${n}`,
+    result: "Result",
+    chars: (n: string) => `${n} characters`,
+    copy: "Copy",
+    copied: "Copied",
+    toTranslate: "Continue to EPUB translation",
+    making: "Building…",
+    searchablePdf: "Searchable PDF",
+    exportFailed: (kind: string, msg: string) => `Couldn't build the ${kind}: ${msg}`,
+    epubFailed: (msg: string) => `Couldn't read the EPUB: ${msg}`,
+    replaceJob: "Close the book open in the translate tab and use this result instead? Its translations will be lost.",
+    copyHeader: (n: number) => `--- Page ${n} ---`,
+  },
+  tr: {
+    madeTitle: "You have an EPUB made in the PDF OCR tab",
+    useMade: "Translate this EPUB",
+    reading: "Reading…",
+    drop: "Drop an EPUB here or click to choose",
+    dropHint: "For a PDF, make an EPUB in the ‘PDF OCR’ tab, then press ‘Continue to EPUB translation’.",
+    noSegments: "No paragraphs to translate",
+    openOther: "Open another EPUB",
+    paragraphs: (n: string) => `${n} paragraphs`,
+    steps: ["Load", "Translate", "Review", "Build EPUB"],
+    source: "From",
+    target: "To",
+    auto: "Detect language",
+    common: "Common",
+    all: (n: number) => `All ${n}`,
+    count: (d: number, n: number) => `Translated ${d}/${n}`,
+    failedCount: (n: number) => `${n} failed`,
+    translateTodo: (n: string) => `Translate ${n} remaining`,
+    retranslate: (n: number) => `Retranslate ${n} selected`,
+    cancel: "Stop",
+    stopped: (msg: string) => `Translation stopped: ${msg}`,
+    changeTarget: "Changing the target language clears the translations so far. Continue?",
+    buildFailed: (msg: string) => `Couldn't build the EPUB: ${msg}`,
+    selectPage: "Select this page",
+    clear: "Clear selection",
+    view: "View",
+    filters: { all: "All", todo: "Untranslated", fail: "Failed", edit: "Edited" },
+    select: (n: number) => `Select #${n}`,
+    translation: (n: number) => `Translation #${n}`,
+    failPlaceholder: "Translation failed · type it in or retranslate",
+    todoPlaceholder: "Not translated · you can type it in",
+    none: "No matching paragraphs.",
+    prev: "Previous",
+    next: "Next",
+    layout: "Layout",
+    both: "Translation under original",
+    replace: "Translation only",
+    build: "Build EPUB",
+  },
+};
+
+export type Messages = typeof en;
+
+const ko: Messages = {
+  meta: {
+    title: "PDF OCR · sophonz labs",
+    description: "이미지로 된 PDF에서 텍스트를 인식해 검색 가능한 PDF와 문단 단위 EPUB을 만들고, 243개 언어로 번역합니다. 모두 브라우저에서 처리합니다.",
+    tools: "도구 · PDF OCR",
+    privacy: "개인정보처리방침 · PDF OCR",
+  },
+  home: "PDF OCR 홈",
+  langSwitch: "언어",
+  tools: {
+    ocr: {
+      label: "PDF OCR",
+      desc: "스캔한 PDF에서 한글·영어 텍스트를 뽑아 검색 가능한 PDF와 문단을 살린 EPUB으로 만듭니다. 만든 EPUB은 그대로 번역 탭으로 이어집니다.",
+    },
+    translate: { label: "EPUB 번역", desc: "EPUB을 문단 단위로 번역하고, 한 문단씩 검토하고 고친 뒤 다시 EPUB으로 묶습니다." },
+  },
+  landing: {
+    open: "도구 열기",
+    title: "이미지로 된 PDF를, 검색되는 문서와 EPUB으로.",
+    lead: "스캔본처럼 글자가 이미지로만 들어 있는 PDF에서 텍스트를 인식해 검색 가능한 PDF와 문단 단위 EPUB을 만들고, 원하는 언어로 번역합니다. 모두 브라우저에서 처리합니다.",
+    addToChrome: "Chrome에 추가",
+    storeSoon: "Chrome 웹 스토어 등록 준비 중",
+    tryWeb: "웹에서 바로 써 보기",
+    stepsTitle: "Chrome 확장 프로그램으로 쓰기",
+    steps: [
+      { title: "Chrome에 추가", body: "Chrome 웹 스토어에서 PDF OCR을 설치합니다." },
+      { title: "툴바 아이콘 클릭", body: "브라우저 오른쪽에 사이드 패널이 열립니다. 다른 페이지를 보는 동안에도 작업이 이어집니다." },
+      { title: "파일을 놓기", body: "PDF를 놓으면 텍스트를 인식하고, 검색 가능한 PDF와 EPUB을 받고, 이어서 번역까지 합니다." },
+    ],
+    featuresTitle: "기능",
+    features: [
+      {
+        title: "브라우저에서 모두 처리",
+        body: "OCR부터 PDF·EPUB 생성까지 이 브라우저 안에서 처리합니다. 번역할 때만 문단 텍스트가 Google 번역으로 전송됩니다.",
+      },
+      {
+        title: "문단 단위 EPUB",
+        body: "줄바꿈이 아니라 문단 단위로 다시 잇습니다. 머리말과 쪽 번호를 빼고, 줄 끝에서 끊긴 단어를 붙이고, 쪽을 넘어가는 문단도 하나로 묶습니다.",
+      },
+      { title: "검색 가능한 PDF", body: "원본 위에 보이지 않는 텍스트 층을 얹습니다. 보이는 모습은 그대로이고, 찾기와 복사를 할 수 있습니다." },
+      { title: "검토하며 번역", body: "243개 언어로 문단 단위 번역을 하고, 문단마다 고치거나 골라서 다시 번역한 뒤 EPUB으로 묶습니다." },
+    ],
+  },
+  footer: {
+    blurb: "PDF OCR, 검색 가능한 PDF, EPUB 변환과 번역. 모두 브라우저에서 처리합니다.",
+    tools: "도구",
+    openSource: "오픈소스",
+    source: "소스 코드",
+    privacy: "개인정보처리방침",
+  },
+  ocr: {
+    tablist: "도구",
+    local: "파일은 서버로 올라가지 않고 이 브라우저 안에서 처리됩니다.",
+    status: { pending: "대기", render: "렌더링", ocr: "인식 중", text: "텍스트 레이어", done: "완료", error: "오류" },
+    langs: { "kor+eng": "한국어 + 영어", kor: "한국어", eng: "영어" },
+    langGroup: "인식 언어",
+    drop: "PDF를 끌어다 놓거나 클릭해서 선택",
+    dropHint: "스캔본, 사진 PDF 모두 가능",
+    skipText: "텍스트가 있는 페이지는 OCR 생략",
+    opening: "PDF 여는 중",
+    working: "처리 중",
+    stopped: "중단됨",
+    done: "완료",
+    error: "오류",
+    stop: "중단",
+    pages: (done, total) => `${done} / ${total} 페이지`,
+    secs: (s) => `${s}초`,
+    lanes: (n) => `${n}개 병렬`,
+    perPage: (s) => `페이지당 ${s}초`,
+    eta: (s) => `약 ${s}초 남음`,
+    progress: "전체 진행률",
+    pageStates: "페이지별 상태",
+    page: (n) => `${n}페이지`,
+    result: "결과",
+    chars: (n) => `${n}자`,
+    copy: "복사",
+    copied: "복사됨",
+    toTranslate: "EPUB 번역으로 이어가기",
+    making: "만드는 중…",
+    searchablePdf: "검색 가능한 PDF",
+    exportFailed: (kind, msg) => `${kind} 생성 실패: ${msg}`,
+    epubFailed: (msg) => `EPUB을 읽지 못했습니다: ${msg}`,
+    replaceJob: "EPUB 번역 탭에 열려 있는 책을 닫고 이 결과로 바꿀까요? 그 책의 번역은 사라집니다.",
+    copyHeader: (n) => `--- ${n} 페이지 ---`,
+  },
+  tr: {
+    madeTitle: "PDF OCR 탭에서 만든 EPUB이 있습니다",
+    useMade: "이 EPUB으로 번역 시작",
+    reading: "읽는 중…",
+    drop: "EPUB을 끌어다 놓거나 클릭해서 선택",
+    dropHint: "PDF는 ‘PDF OCR’ 탭에서 EPUB으로 만든 뒤 ‘EPUB 번역으로 이어가기’를 누르면 여기로 이어집니다.",
+    noSegments: "번역할 문단을 찾지 못했습니다",
+    openOther: "다른 EPUB 열기",
+    paragraphs: (n) => `${n}문단`,
+    steps: ["불러오기", "번역", "검토·수정", "EPUB 만들기"],
+    source: "원문",
+    target: "번역",
+    auto: "자동 감지",
+    common: "자주 쓰는 언어",
+    all: (n) => `전체 ${n}개`,
+    count: (d, n) => `번역 ${d}/${n}`,
+    failedCount: (n) => `실패 ${n}`,
+    translateTodo: (n) => `미번역 ${n}개 번역`,
+    retranslate: (n) => `선택 ${n}개 다시 번역`,
+    cancel: "중지",
+    stopped: (msg) => `번역 중단: ${msg}`,
+    changeTarget: "번역 언어를 바꾸면 지금까지의 번역을 지웁니다. 계속할까요?",
+    buildFailed: (msg) => `EPUB 생성 실패: ${msg}`,
+    selectPage: "이 쪽 선택",
+    clear: "선택 해제",
+    view: "보기",
+    filters: { all: "전체", todo: "미번역", fail: "실패", edit: "수정함" },
+    select: (n) => `${n}번 선택`,
+    translation: (n) => `${n}번 번역`,
+    failPlaceholder: "번역 실패 · 직접 입력하거나 다시 번역",
+    todoPlaceholder: "미번역 · 직접 입력할 수 있습니다",
+    none: "해당하는 문단이 없습니다.",
+    prev: "이전",
+    next: "다음",
+    layout: "번역 배치",
+    both: "원문 아래 번역",
+    replace: "번역만",
+    build: "EPUB 만들기",
+  },
+};
+
+export const DICT: Record<Lang, Messages> = { en, ko };

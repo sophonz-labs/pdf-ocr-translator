@@ -1,5 +1,5 @@
 {
-  "name": "pdf-ocr",
+  "name": "pdf-ocr-translator",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -35,5 +35,10 @@
     "typescript": "^5",
     "vite": "8.3.8"
   },
-  "packageManager": "bun@1.2.19"
+  "packageManager": "bun@1.2.19",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sophonz-labs/pdf-ocr-translator"
+  }
 }

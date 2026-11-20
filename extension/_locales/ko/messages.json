@@ -1,0 +1,5 @@
+{
+  "name": { "message": "PDF OCR - 이미지 PDF를 검색 가능한 PDF와 EPUB으로" },
+  "description": { "message": "이미지로 된 PDF에서 텍스트를 인식해 검색 가능한 PDF와 문단 단위 EPUB을 만들고 번역합니다. 모두 브라우저에서 처리합니다." },
+  "action_title": { "message": "PDF OCR 열기" }
+}

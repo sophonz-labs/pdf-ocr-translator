@@ -21,12 +21,12 @@ function parse(src: string): Document {
 export function readEpub(bytes: Uint8Array): OpenEpub {
   const files = unzipSync(bytes);
   const container = files["META-INF/container.xml"];
-  if (!container) throw new Error("EPUB이 아닙니다 (META-INF/container.xml 없음)");
+  if (!container) throw new Error("not an EPUB (no META-INF/container.xml)");
   const opfPath = new DOMParser()
     .parseFromString(strFromU8(container), "application/xml")
     .querySelector("rootfile")
     ?.getAttribute("full-path");
-  if (!opfPath || !files[opfPath]) throw new Error("content.opf를 찾지 못했습니다");
+  if (!opfPath || !files[opfPath]) throw new Error("content.opf not found");
   const opf = new DOMParser().parseFromString(strFromU8(files[opfPath]), "application/xml");
 
   const manifest = new Map<string, Element>();
