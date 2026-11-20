@@ -23,7 +23,7 @@ const FEATURES = [
 
 export default function Landing() {
   return (
-    <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-10 sm:py-14">
+    <main className="mx-auto w-full max-w-5xl flex-1 break-keep px-4 py-10 sm:py-14">
       <SiteHeader
         right={
           <Link href="/tools" className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800">
@@ -34,9 +34,9 @@ export default function Landing() {
 
       <section className="mt-20 flex flex-col items-start gap-6 sm:mt-28">
         <AppIcon size={72} className="drop-shadow-[0_8px_24px_rgba(72,33,145,0.35)]" />
-        <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-balance sm:text-5xl">PDF를 검색할 수 있는 문서로, 읽기 좋은 EPUB으로.</h1>
+        <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-balance sm:text-5xl">이미지로 된 PDF를, 검색되는 문서와 EPUB으로.</h1>
         <p className="max-w-xl text-lg leading-relaxed text-zinc-600 dark:text-zinc-400">
-          PDF에서 텍스트를 인식해 검색 가능한 PDF와 문단 단위 EPUB을 만들고, 원하는 언어로 번역합니다. 모두 브라우저에서 처리합니다.
+          스캔본처럼 글자가 이미지로만 들어 있는 PDF에서 텍스트를 인식해 검색 가능한 PDF와 문단 단위 EPUB을 만들고, 원하는 언어로 번역합니다. 모두 브라우저에서 처리합니다.
         </p>
         <div className="flex flex-wrap gap-3">
           <Link
