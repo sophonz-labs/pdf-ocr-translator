@@ -37,4 +37,4 @@ Drop `<lang>.traineddata` from [tessdata_fast](https://github.com/tesseract-ocr/
 
 ## License
 
-MIT. Bundled third-party files keep their own licenses: tessdata models (Apache-2.0), NanumGothic (SIL OFL 1.1, `public/fonts/OFL.txt`); tesseract.js and pdf.js files copied at install time are Apache-2.0.
+MIT. Bundled third-party files keep their own licenses: tessdata models (Apache-2.0), NanumGothic (SIL OFL 1.1, `public/fonts/OFL.txt`); Geist Bold and NanumGothic Bold in `src/og/`, used only to render Open Graph images at build time (SIL OFL 1.1); tesseract.js and pdf.js files copied at install time are Apache-2.0.

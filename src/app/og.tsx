@@ -13,7 +13,7 @@ const PATH: Record<PageKey, string> = { home: "/", tools: "/tools/", privacy: "/
 
 function text(lang: Lang, page: PageKey) {
   const m = DICT[lang].meta;
-  if (page === "home") return { title: m.title, description: m.description, heading: DICT[lang].landing.title, sub: m.description };
+  if (page === "home") return { title: m.title, description: m.description, heading: m.ogHome, sub: m.description };
   if (page === "tools") return { title: m.tools, description: m.toolsDesc, heading: m.ogTools, sub: m.toolsDesc };
   return { title: m.privacy, description: m.privacyDesc, heading: m.ogPrivacy, sub: m.privacyDesc };
 }
@@ -39,11 +39,19 @@ export function pageMeta(lang: Lang, page: PageKey): Metadata {
   };
 }
 
-const font = readFile(join(process.cwd(), "public/fonts/NanumGothic-Regular.ttf"));
-const icon = readFile(join(process.cwd(), "src/app/icon.svg")).then((b) => `data:image/svg+xml;base64,${b.toString("base64")}`);
+const asset = (f: string) => readFile(join(process.cwd(), f));
+const regular = asset("public/fonts/NanumGothic-Regular.ttf");
+const bold = asset("src/og/NanumGothic-Bold.ttf");
+const geist = asset("src/og/Geist-Bold.ttf");
+const dataUri = (f: string, type: string) => asset(f).then((b) => `data:${type};base64,${b.toString("base64")}`);
+const icon = dataUri("src/app/icon.svg", "image/svg+xml");
+// Screens from the extension (src/og/*.jpg): the OCR side panel, and the translation review for the tools page.
+const shot = (lang: Lang, page: PageKey) => dataUri(`src/og/${page === "tools" ? "review" : "panel"}-${lang}.jpg`, "image/jpeg");
 
 export async function ogImage(lang: Lang, page: PageKey) {
   const { heading, sub } = text(lang, page);
+  const wide = page === "tools"; // the review screen is a wide layout
+  const shotW = wide ? 520 : 360;
   return new ImageResponse(
     (
       <div
@@ -51,30 +59,58 @@ export async function ogImage(lang: Lang, page: PageKey) {
           width: "100%",
           height: "100%",
           display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          padding: "72px 80px",
+          position: "relative",
           color: "#fff",
           fontFamily: "Nanum",
           backgroundColor: "#040013",
           backgroundImage: "radial-gradient(circle at 18% 12%, #482191 0%, transparent 55%), radial-gradient(circle at 88% 92%, #174262 0%, transparent 55%)",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 20, fontSize: 34 }}>
+        <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "64px 0 56px 72px", width: 1200 - shotW - 120 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 18, fontSize: 30, fontWeight: 700 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element -- ImageResponse renders plain <img> */}
+            <img src={await icon} width={60} height={60} alt="" style={{ borderRadius: 13 }} />
+            PDF OCR
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+            {/* Geist first: NanumGothic Bold draws "ti" as a broken ligature. Hangul falls back to Nanum. */}
+            <div style={{ fontFamily: "Geist, Nanum", fontSize: heading.length > 32 ? 46 : 54, fontWeight: 700, lineHeight: 1.25, letterSpacing: -1, wordBreak: "keep-all" }}>
+              {heading}
+            </div>
+            <div style={{ fontSize: 23, lineHeight: 1.55, color: "#c4c8e8", wordBreak: "keep-all" }}>{sub}</div>
+          </div>
+          <div style={{ display: "flex", gap: 20, fontSize: 21, color: "#7DD3FC" }}>
+            <span>ocr.sophonz.com</span>
+            <span style={{ color: "#8b8fb0" }}>sophonz labs</span>
+          </div>
+        </div>
+        <div
+          style={{
+            position: "absolute",
+            right: 56,
+            top: 56,
+            width: shotW,
+            height: 630,
+            display: "flex",
+            overflow: "hidden",
+            borderRadius: 18,
+            backgroundColor: "#fafafa",
+            boxShadow: "0 30px 80px rgba(0,0,0,.55)",
+            border: "1px solid rgba(255,255,255,.1)",
+          }}
+        >
           {/* eslint-disable-next-line @next/next/no-img-element -- ImageResponse renders plain <img> */}
-          <img src={await icon} width={68} height={68} alt="" style={{ borderRadius: 15 }} />
-          PDF OCR
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-          <div style={{ fontSize: heading.length > 40 ? 58 : 68, lineHeight: 1.2, letterSpacing: -1.5, color: "#fff", wordBreak: "keep-all" }}>{heading}</div>
-          <div style={{ fontSize: 28, lineHeight: 1.45, color: "#c4c8e8", wordBreak: "keep-all" }}>{sub}</div>
-        </div>
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 24, color: "#7DD3FC" }}>
-          <span>ocr.sophonz.com</span>
-          <span style={{ color: "#8b8fb0" }}>sophonz labs</span>
+          <img src={await shot(lang, page)} width={shotW} alt="" style={{ objectFit: "cover", objectPosition: "top" }} />
         </div>
       </div>
     ),
-    { ...OG_SIZE, fonts: [{ name: "Nanum", data: await font, style: "normal", weight: 400 }] },
+    {
+      ...OG_SIZE,
+      fonts: [
+        { name: "Nanum", data: await regular, style: "normal", weight: 400 },
+        { name: "Nanum", data: await bold, style: "normal", weight: 700 },
+        { name: "Geist", data: await geist, style: "normal", weight: 700 },
+      ],
+    },
   );
 }
