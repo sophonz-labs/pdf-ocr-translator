@@ -4,7 +4,7 @@
 export type Run = { text: string; bold?: boolean; italic?: boolean; sup?: boolean };
 export type TextLine = { runs: Run[]; x0: number; x1: number; top: number; bottom: number; size: number };
 export type PageLayout = { n: number; width: number; height: number; lines: TextLine[] };
-export type Block = { kind: "h1" | "h2" | "h3" | "p" | "note"; runs: Run[]; page: number };
+export type Block = { kind: "h1" | "h2" | "h3" | "p" | "note"; runs: Run[]; page: number; tr?: string };
 
 /** A pdf.js text item reduced to what layout needs. `y` is the baseline. */
 export type Item = { text: string; x: number; y: number; w: number; size: number; bold: boolean; italic: boolean };

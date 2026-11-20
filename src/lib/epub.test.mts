@@ -29,4 +29,7 @@ assert.match(ch1, /<p class="note">1\. Note\.<\/p>/);
 assert.match(strFromU8(files["OEBPS/content.opf"]), /<dc:language>en<\/dc:language>/);
 assert.match(strFromU8(files["OEBPS/nav.xhtml"]), /<a href="ch002.xhtml">Two<\/a>/);
 
+const bi = unzipSync(buildEpub({ title: "T", lang: "en", trLang: "ko", blocks: [{ kind: "p", runs: [{ text: "Hi" }], page: 1, tr: "안녕 <&>" }] }));
+assert.match(strFromU8(bi["OEBPS/ch001.xhtml"]), /<p>Hi<\/p>\n<p class="tr" lang="ko" xml:lang="ko">안녕 &lt;&amp;&gt;<\/p>/);
+
 console.log("epub: ok");

@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "postinstall": "node scripts/copy-assets.mjs",
-    "test": "node src/lib/layout.test.mts && node src/lib/epub.test.mts"
+    "test": "node src/lib/layout.test.mts && node src/lib/epub.test.mts && node src/lib/translate.test.mts"
   },
   "dependencies": {
     "@pdf-lib/fontkit": "1.1.1",

@@ -1,7 +1,8 @@
 import { strToU8, zipSync, type Zippable } from "fflate";
 import { lineText, type Block, type Run } from "./layout.ts";
 
-export type Book = { title: string; author?: string; lang: string; blocks: Block[] };
+/** `trLang` is the language of `Block.tr`, the translation printed under the original. */
+export type Book = { title: string; author?: string; lang: string; trLang?: string; blocks: Block[] };
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
@@ -36,6 +37,7 @@ p { margin: 0; text-indent: 1.5em; text-align: justify; }
 h1 + p, h2 + p, h3 + p, .note + p { text-indent: 0; }
 p.note { font-size: .85em; text-indent: 0; margin: .6em 0; opacity: .85; }
 sup { font-size: .7em; line-height: 0; }
+p.tr { text-indent: 0; margin: .3em 0 .9em; opacity: .75; }
 `;
 
 /** Splits at the highest heading level that occurs at least twice; that becomes the chapter level. */
@@ -71,10 +73,11 @@ export function buildEpub(book: Book): Uint8Array {
     const name = `ch${String(i + 1).padStart(3, "0")}.xhtml`;
     const body = c.blocks
       .map((b) => {
-        if (b.kind === "note") return `<p class="note">${runsToHtml(b.runs)}</p>`;
+        const tr = b.tr ? `\n<p class="tr" lang="${book.trLang}" xml:lang="${book.trLang}">${esc(b.tr)}</p>` : "";
+        if (b.kind === "note") return `<p class="note">${runsToHtml(b.runs)}</p>${tr}`;
         // Headings are bold by CSS; per-run bold there is noise (e.g. only the Latin glyphs had a bold font).
         const runs = b.kind === "p" ? b.runs : b.runs.map((r) => ({ ...r, bold: false }));
-        return `<${b.kind}>${runsToHtml(runs)}</${b.kind}>`;
+        return `<${b.kind}>${runsToHtml(runs)}</${b.kind}>${tr}`;
       })
       .join("\n");
     files[`OEBPS/${name}`] = strToU8(xhtml(c.title || book.title, book.lang, body));
