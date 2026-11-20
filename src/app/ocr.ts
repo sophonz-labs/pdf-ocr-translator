@@ -174,6 +174,7 @@ export async function jobFromOcr(r: OcrResult): Promise<Job> {
   const keep = texts.map((t, i) => (t ? i : -1)).filter((i) => i >= 0);
   return {
     name: r.name,
+    origin: "ocr",
     segments: keep.map((i) => ({ tag: blocks[i].kind, text: texts[i] })),
     build: (tr, mode, lang) => {
       const all: (string | undefined)[] = Array(blocks.length);

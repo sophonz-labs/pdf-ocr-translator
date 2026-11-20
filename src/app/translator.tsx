@@ -4,6 +4,8 @@ import { useRef, useState, useSyncExternalStore } from "react";
 import { COMMON_LANGS, LANGS } from "@/lib/translate";
 import type { Lang } from "@/i18n";
 import { useLang, useT } from "@/i18n-context";
+import { agentPrompt as agentPromptText, type PromptInfo } from "@/lib/agent-prompt";
+import { AgentPrompt } from "./agent-prompt-panel";
 import { save } from "./save";
 
 type Mode = "replace" | "both";
@@ -12,6 +14,8 @@ export type Job = {
   name: string;
   segments: { tag: string; text: string }[];
   build: (tr: (string | undefined)[], mode: Mode, lang: string) => Uint8Array;
+  /** Where the book came from; the agent prompt describes each one's markup. */
+  origin: "ocr" | "epub";
 };
 type St = "" | "ok" | "fail" | "edit";
 
@@ -19,7 +23,7 @@ export async function jobFromEpub(f: File, noSegments: string): Promise<Job> {
   const { readEpub, writeEpub } = await import("@/lib/epub-io");
   const book = readEpub(new Uint8Array(await f.arrayBuffer()));
   if (!book.segments.length) throw new Error(noSegments);
-  return { name: f.name.replace(/\.epub$/i, ""), segments: book.segments, build: (tr, mode, lang) => writeEpub(book, tr, mode, lang) };
+  return { name: f.name.replace(/\.epub$/i, ""), origin: "epub", segments: book.segments, build: (tr, mode, lang) => writeEpub(book, tr, mode, lang) };
 }
 
 const NAME_FIX: Record<Lang, Record<string, string>> = {
@@ -194,7 +198,9 @@ export function Translator({
 }
 
 function Review({ job }: { job: Job }) {
+  const ui = useLang();
   const t = useT().tr;
+  const [built, setBuilt] = useState<PromptInfo | null>(null); // the last EPUB built, for the agent prompt
   const n = job.segments.length;
   const [source, setSource] = useState("auto");
   const [target, setTarget] = useState<string>(useLang()); // into the UI language unless changed
@@ -256,7 +262,9 @@ function Review({ job }: { job: Job }) {
 
   function build() {
     try {
-      save(job.build(tr, mode, target), `${job.name}.${target}.epub`, "application/epub+zip");
+      const file = `${job.name}.${target}.epub`;
+      save(job.build(tr, mode, target), file, "application/epub+zip");
+      setBuilt({ file, source, target, mode, origin: job.origin, total: n, done, failed, edited: st.filter((s) => s === "edit").length });
     } catch (e) {
       setNotice(t.buildFailed(e instanceof Error ? e.message : String(e)));
     }
@@ -403,6 +411,7 @@ function Review({ job }: { job: Job }) {
           </button>
         </div>
       </div>
+      {built && <AgentPrompt key={JSON.stringify(built)} prompt={agentPromptText(ui, built)} />}
     </div>
   );
 }

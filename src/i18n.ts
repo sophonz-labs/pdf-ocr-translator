@@ -154,6 +154,10 @@ const en = {
     both: "Translation under original",
     replace: "Translation only",
     build: "Build EPUB",
+    agentTitle: "Finish it with an AI agent",
+    agentBody: "Give this prompt to an AI agent (Claude Code, Codex and the like) together with the EPUB you just downloaded. It proofreads the translation and makes the finished bilingual and translation-only books.",
+    copyPrompt: "Copy prompt",
+    copied: "Copied",
   },
 };
 
@@ -286,6 +290,10 @@ const ko: Messages = {
     both: "원문 아래 번역",
     replace: "번역만",
     build: "EPUB 만들기",
+    agentTitle: "AI 에이전트로 마무리하기",
+    agentBody: "방금 내려받은 EPUB과 함께 이 프롬프트를 AI 에이전트(Claude Code, Codex 등)에게 주세요. 번역을 교정하고 대역본과 번역만 남긴 완성본을 만듭니다.",
+    copyPrompt: "프롬프트 복사",
+    copied: "복사됨",
   },
 };
 
