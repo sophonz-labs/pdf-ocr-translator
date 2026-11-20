@@ -13,7 +13,7 @@ Built with Vite rather than Next: Next's static export puts inline scripts in th
 ## Try it locally
 
 1. `chrome://extensions` → turn on Developer mode.
-2. "Load unpacked" → `extension/dist`.
+2. "Load unpacked" → `extension/dist` (not `extension/`: that is the source and has no manifest.json on purpose).
 3. Click the toolbar icon (pin it from the puzzle menu first). The side panel opens.
 
 ## Publishing to the Chrome Web Store

@@ -18,7 +18,8 @@ cpSync(join(ext, "background.js"), join(dist, "background.js"));
 cpSync(join(ext, "_locales"), join(dist, "_locales"), { recursive: true });
 
 const { version } = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
-const manifest = JSON.parse(readFileSync(join(ext, "manifest.json"), "utf8"));
+// Named manifest.base.json so Chrome can't load the unbuilt extension/ folder by mistake; dist gets the real manifest.json.
+const manifest = JSON.parse(readFileSync(join(ext, "manifest.base.json"), "utf8"));
 manifest.version = version;
 writeFileSync(join(dist, "manifest.json"), JSON.stringify(manifest, null, 2));
 
