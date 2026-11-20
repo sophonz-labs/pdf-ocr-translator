@@ -25,7 +25,7 @@ const en = {
     title: "PDF OCR · sophonz labs",
     description:
       "Recognizes text in scanned and other image-based PDFs, produces searchable PDFs and EPUBs, and translates them into 243 languages. All processing takes place in the browser.",
-    tools: "Tools · PDF OCR",
+    tools: "PDF OCR and EPUB Translation · PDF OCR",
     privacy: "Privacy policy · PDF OCR",
     toolsDesc: "Converts image-based PDFs into searchable PDFs and EPUBs, and translates EPUBs paragraph by paragraph. Files are not uploaded to any server.",
     privacyDesc: "Files are processed only in the browser. Paragraph text is sent to Google Translate only when a translation is requested.",
@@ -168,7 +168,7 @@ const ko: Messages = {
   meta: {
     title: "PDF OCR · sophonz labs",
     description: "스캔본 등 이미지로 구성된 PDF의 텍스트를 인식하여 검색 가능한 PDF와 EPUB으로 변환하고, 243개 언어로 번역합니다. 모든 처리는 브라우저에서 이루어집니다.",
-    tools: "도구 · PDF OCR",
+    tools: "PDF 텍스트 인식 및 EPUB 번역 · PDF OCR",
     privacy: "개인정보처리방침 · PDF OCR",
     toolsDesc: "이미지 PDF를 검색 가능한 PDF와 EPUB으로 변환하고, EPUB을 문단 단위로 번역합니다. 파일은 서버에 업로드되지 않습니다.",
     privacyDesc: "파일은 브라우저에서만 처리됩니다. 문단 텍스트는 번역을 요청한 경우에 한하여 Google 번역으로 전송됩니다.",
