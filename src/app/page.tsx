@@ -1,505 +1,86 @@
-"use client";
+import Link from "next/link";
+import { AppIcon } from "@/components/brand";
+import { SiteHeader, TOOLS } from "@/components/site";
 
-import { useRef, useState } from "react";
-import type { PageLayout } from "@/lib/layout";
-import type { Line } from "./searchable-pdf";
-import { save } from "./save";
-import { jobFromEpub, Translator, type Job } from "./translator";
-
-type Status = "pending" | "render" | "ocr" | "text" | "done" | "error";
-type Page = { n: number; status: Status; progress: number; text: string; ms?: number };
-
-const LABEL: Record<Status, string> = {
-  pending: "대기",
-  render: "렌더링",
-  ocr: "인식 중",
-  text: "텍스트 레이어",
-  done: "완료",
-  error: "오류",
-};
-
-type Tab = "ocr" | "translate";
-const TABS: { id: Tab; label: string; desc: string }[] = [
+const FEATURES = [
   {
-    id: "ocr",
-    label: "PDF OCR",
-    desc: "스캔한 PDF에서 한글과 영어 텍스트를 뽑아 검색 가능한 PDF나 EPUB으로 만듭니다. EPUB은 줄바꿈 대신 문단 단위로 다시 짜고 제목과 굵게·기울임을 살립니다. 파일은 서버로 올라가지 않고 이 브라우저 안에서만 처리됩니다.",
+    title: "서버 없이, 브라우저 안에서",
+    body: "Tesseract OCR과 pdf.js의 JBIG2·JPEG2000 디코더가 WebAssembly로 돌아갑니다. 책 파일은 이 기기를 떠나지 않습니다.",
   },
   {
-    id: "translate",
-    label: "EPUB 번역",
-    desc: "EPUB을 문단 단위로 번역합니다. 불러오기 → 번역 → 검토·수정 → EPUB 만들기 순서로 진행하고, 번역문은 직접 고치거나 골라서 다시 번역할 수 있습니다. 이 기능만 문단 텍스트를 Google 번역으로 보냅니다.",
+    title: "줄이 아니라 문단으로",
+    body: "들여쓰기와 줄 간격으로 문단을 다시 잇고, 쪽 머리말과 쪽 번호를 걷어 내고, 줄 끝에서 끊긴 단어를 붙입니다. 쪽을 넘어가는 문단도 하나로 남습니다.",
+  },
+  {
+    title: "검색 가능한 PDF",
+    body: "원본 스캔 위에 보이지 않는 글자 층을 얹습니다. 생김새는 그대로이고, 찾기와 복사가 됩니다.",
+  },
+  {
+    title: "검토하며 번역",
+    body: "Google 번역이 지원하는 243개 언어로 문단 단위 번역을 하고, 문단마다 고치거나 골라서 다시 번역한 뒤 EPUB으로 묶습니다.",
   },
 ];
 
-const LANGS = [
-  { value: "kor+eng", label: "한국어 + 영어" },
-  { value: "kor", label: "한국어" },
-  { value: "eng", label: "영어" },
-];
-
-export default function Home() {
-  const [pages, setPages] = useState<Page[]>([]);
-  const [lang, setLang] = useState("kor+eng");
-  const [skipText, setSkipText] = useState(true);
-  const [running, setRunning] = useState(false);
-  const [phase, setPhase] = useState("");
-  const [error, setError] = useState("");
-  const [elapsed, setElapsed] = useState(0);
-  const [file, setFile] = useState<{ name: string; size: number } | null>(null);
-  const [exporting, setExporting] = useState<"pdf" | "epub" | null>(null);
-  const [copied, setCopied] = useState(false);
-  const [job, setJob] = useState<Job | null>(null);
-  const [tab, setTab] = useState<Tab>("ocr");
-  const [dragging, setDragging] = useState(false);
-  const cancelled = useRef(false);
-  const [lanes, setLanes] = useState(1);
-  const source = useRef<{ name: string; bytes: ArrayBuffer; title?: string; author?: string } | null>(null);
-  const lines = useRef(new Map<number, Line[]>());
-  const layouts = useRef(new Map<number, PageLayout>());
-
-  const update = (n: number, patch: Partial<Page>) =>
-    setPages((ps) => ps.map((p) => (p.n === n ? { ...p, ...patch } : p)));
-
-  async function run(f: File) {
-    if (running) return;
-    setRunning(true);
-    setError("");
-    setPages([]);
-    setFile({ name: f.name, size: f.size });
-    cancelled.current = false;
-    // eslint-disable-next-line react-hooks/purity -- runs in an event handler, not during render
-    const t0 = performance.now();
-    const timer = setInterval(() => setElapsed(performance.now() - t0), 250);
-
-    // Loaded lazily: both libraries touch browser-only globals at import time.
-    // pdf.js legacy build: the modern one needs Map.getOrInsertComputed (Chrome 145+, no Safari).
-    const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-    pdfjs.GlobalWorkerOptions.workerSrc = "/vendor/pdf.worker.min.mjs";
-    const Tesseract = await import("tesseract.js");
-    const { textLayerLines } = await import("@/lib/pdf-text");
-    type OcrWorker = Awaited<ReturnType<typeof Tesseract.createWorker>>;
-    const workers: OcrWorker[] = [];
-
-    try {
-      setPhase("PDF 여는 중");
-      const bytes = await f.arrayBuffer();
-      lines.current = new Map();
-      layouts.current = new Map();
-      // pdf.js detaches the buffer it is given, so hand it a copy and keep the original for export.
-      const pdf = await pdfjs.getDocument({
-        data: bytes.slice(0),
-        // Scanned books are mostly JBIG2/JPEG2000 images; without the wasm decoders they render blank.
-        wasmUrl: "/vendor/pdfjs/wasm/",
-        cMapUrl: "/vendor/pdfjs/cmaps/",
-        standardFontDataUrl: "/vendor/pdfjs/standard_fonts/",
-        iccUrl: "/vendor/pdfjs/iccs/",
-        fontExtraProperties: true, // font names, for bold/italic in the EPUB
-      }).promise;
-      const info = (await pdf.getMetadata().catch(() => null))?.info as { Title?: string; Author?: string } | undefined;
-      source.current = { name: f.name.replace(/\.pdf$/i, ""), bytes, title: info?.Title?.trim() || undefined, author: info?.Author?.trim() || undefined };
-      setPages(Array.from({ length: pdf.numPages }, (_, i) => ({ n: i + 1, status: "pending", progress: 0, text: "" })));
-
-      // One tesseract worker per lane; each holds its own copy of the models (~100MB+), so cap it.
-      const laneCount = Math.max(1, Math.min(4, (navigator.hardwareConcurrency || 2) - 1));
-      setLanes(laneCount);
-      setPhase("처리 중");
-      let next = 1;
-
-      const lane = async () => {
-        let worker: OcrWorker | null = null;
-        let at = 0;
-        while (!cancelled.current) {
-          const n = next++;
-          if (n > pdf.numPages) return;
-          at = n;
-          const start = performance.now();
-          try {
-            const page = await pdf.getPage(n);
-            const vp = page.getViewport({ scale: 1 });
-            if (skipText) {
-              const tc = await page.getTextContent();
-              const text = tc.items.map((i) => ("str" in i ? i.str + (i.hasEOL ? "\n" : "") : "")).join("");
-              if (text.trim().length > 20) {
-                layouts.current.set(n, { n, width: vp.width, height: vp.height, lines: await textLayerLines(page, tc) });
-                update(n, { status: "text", progress: 1, text, ms: performance.now() - start });
-                continue;
-              }
-            }
-
-            update(n, { status: "render", progress: 0 });
-            const viewport = page.getViewport({ scale: SCALE });
-            const canvas = document.createElement("canvas");
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-            await page.render({ canvas, viewport }).promise;
-
-            if (!worker) {
-              worker = await Tesseract.createWorker(lang.split("+"), Tesseract.OEM.LSTM_ONLY, {
-                workerPath: "/vendor/worker.min.js",
-                corePath: "/vendor",
-                langPath: "/models",
-                gzip: false,
-                logger: (m) => {
-                  if (m.status !== "recognizing text") return;
-                  const page = at;
-                  // Drop ticks for pages already marked done (progress can arrive late).
-                  setPages((ps) => ps.map((x) => (x.n === page && x.status === "ocr" ? { ...x, progress: m.progress } : x)));
-                },
-              });
-              workers.push(worker);
-            }
-
-            update(n, { status: "ocr" });
-            const { data } = await worker.recognize(canvas, {}, { text: true, blocks: true });
-            canvas.width = canvas.height = 0; // free the bitmap now, not at GC time
-            // Lines, not words: Korean words come back in fragments and PDF extractors insert spaces between them.
-            // Pictures produce garbage lines; real text scores 80+, picture noise mostly under 60.
-            const paras = (data.blocks ?? []).flatMap((b) => b.paragraphs).map((p) => p.lines.filter((l) => l.confidence >= MIN_CONFIDENCE));
-            const found = paras.flat();
-            const text = paras.filter((p) => p.length).map((p) => p.map((l) => l.text.trim()).join("\n")).join("\n\n");
-            lines.current.set(
-              n,
-              found.map(({ text, bbox }) => {
-                // shortcut: assumes an unrotated page; rotated pages get boxes in the wrong direction.
-                const [x, y] = viewport.convertToPdfPoint(bbox.x0, bbox.y1);
-                const [x2, y2] = viewport.convertToPdfPoint(bbox.x1, bbox.y0);
-                return { text: text.trim(), x, y, w: x2 - x, h: y2 - y };
-              }),
-            );
-            layouts.current.set(n, {
-              n,
-              width: vp.width,
-              height: vp.height,
-              lines: found.map(({ text, bbox }) => ({
-                runs: [{ text: text.trim().replace(/\s+/g, " ") }],
-                x0: bbox.x0 / SCALE,
-                x1: bbox.x1 / SCALE,
-                top: bbox.y0 / SCALE,
-                bottom: bbox.y1 / SCALE,
-                // Same convention as the searchable PDF (size = 0.8 x line height), so re-reading it agrees.
-                size: ((bbox.y1 - bbox.y0) / SCALE) * 0.8,
-              })),
-            });
-            update(n, { status: "done", progress: 1, text, ms: performance.now() - start });
-          } catch (e) {
-            console.error(`page ${n}`, e);
-            update(n, { status: "error", progress: 1, ms: performance.now() - start });
-          }
-        }
-      };
-      await Promise.all(Array.from({ length: laneCount }, lane));
-      // ?debug exposes the extracted line layout for offline tuning of the EPUB heuristics.
-      if (new URLSearchParams(location.search).has("debug")) Object.assign(window, { __layouts: [...layouts.current.values()] });
-      setPhase(cancelled.current ? "중단됨" : "완료");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-      setPages((ps) => ps.map((p) => (p.status === "render" || p.status === "ocr" ? { ...p, status: "error" } : p)));
-      setPhase("오류");
-    } finally {
-      await Promise.all(workers.map((w) => w.terminate()));
-      clearInterval(timer);
-      setElapsed(performance.now() - t0);
-      setRunning(false);
-    }
-  }
-
-  async function exportAs(kind: "pdf" | "epub") {
-    if (!source.current) return;
-    const src = source.current;
-    setExporting(kind);
-    try {
-      if (kind === "pdf") {
-        const { buildSearchablePdf } = await import("./searchable-pdf");
-        save(await buildSearchablePdf(src.bytes, lines.current), `${src.name}-ocr.pdf`, "application/pdf");
-      } else {
-        const { buildBlocks } = await import("@/lib/layout");
-        const { buildEpub, guessLang } = await import("@/lib/epub");
-        const blocks = buildBlocks([...layouts.current.values()]);
-        const epub = buildEpub({ title: src.title ?? src.name, author: src.author, lang: guessLang(blocks), blocks });
-        save(epub, `${src.name}.epub`, "application/epub+zip");
-      }
-    } catch (e) {
-      setError(`${kind.toUpperCase()} 생성 실패: ${e instanceof Error ? e.message : String(e)}`);
-    } finally {
-      setExporting(null);
-    }
-  }
-
-  /** Hands the OCR result to the translator as an EPUB job. */
-  async function toTranslator() {
-    const src = source.current;
-    if (!src) return;
-    const { buildBlocks } = await import("@/lib/layout");
-    const { buildEpub, guessLang } = await import("@/lib/epub");
-    const { applyTranslations, blockTexts } = await import("@/lib/translate");
-    const blocks = buildBlocks([...layouts.current.values()]);
-    const texts = blockTexts(blocks);
-    const keep = texts.map((t, i) => (t ? i : -1)).filter((i) => i >= 0);
-    setJob({
-      name: src.name,
-      segments: keep.map((i) => ({ tag: blocks[i].kind, text: texts[i] })),
-      build: (tr, mode, lang) => {
-        const all: (string | undefined)[] = Array(blocks.length);
-        keep.forEach((i, k) => (all[i] = tr[k]));
-        const out = applyTranslations(blocks, all, mode);
-        return buildEpub({ title: src.title ?? src.name, author: src.author, lang: mode === "replace" ? lang : guessLang(blocks), trLang: lang, blocks: out });
-      },
-    });
-    setTab("translate");
-  }
-
-  async function openFile(f: File) {
-    if (/\.epub$/i.test(f.name)) {
-      try {
-        setJob(await jobFromEpub(f));
-        setTab("translate");
-      } catch (e) {
-        setError(`EPUB을 읽지 못했습니다: ${e instanceof Error ? e.message : String(e)}`);
-      }
-    } else if (f.type === "application/pdf") run(f);
-  }
-
-  async function copy() {
-    await navigator.clipboard.writeText(allText);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  }
-
-  const total = pages.length;
-  const finished = pages.filter((p) => p.status === "done" || p.status === "text").length;
-  const overall = total ? pages.reduce((s, p) => s + p.progress, 0) / total : 0;
-  const timed = pages.filter((p) => p.ms);
-  const avg = timed.length ? timed.reduce((s, p) => s + p.ms!, 0) / timed.length : 0;
-  const eta = running && avg ? ((total - finished) * avg) / lanes / 1000 : 0;
-  const withText = pages.filter((p) => p.text.trim());
-  const allText = withText.map((p) => `--- ${p.n} 페이지 ---\n${p.text.trim()}`).join("\n\n");
-
+export default function Landing() {
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-12 sm:py-20">
-      <header className="mb-8">
-        <div className="flex items-center gap-2.5">
-          <div className="grid h-8 w-8 place-items-center rounded-lg bg-zinc-900 text-[11px] font-bold tracking-tight text-white dark:bg-white dark:text-zinc-900">
-            OCR
-          </div>
-          <h1 className="text-xl font-semibold tracking-tight">PDF·EPUB 도구</h1>
-        </div>
-        <nav role="tablist" aria-label="도구" className="mt-6 flex gap-1 border-b border-zinc-200 dark:border-zinc-800">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              role="tab"
-              id={`tab-${t.id}`}
-              aria-selected={tab === t.id}
-              aria-controls={`panel-${t.id}`}
-              onClick={() => setTab(t.id)}
-              className={`-mb-px border-b-2 px-3 py-2 text-sm transition ${
-                tab === t.id
-                  ? "border-zinc-900 font-medium text-zinc-900 dark:border-white dark:text-white"
-                  : "border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
-              }`}
-            >
-              {t.label}
-              {t.id === "ocr" && running && <span className="ml-1.5 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-blue-600 align-middle" />}
-            </button>
-          ))}
-        </nav>
-        <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">{TABS.find((t) => t.id === tab)!.desc}</p>
-      </header>
+    <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-10 sm:py-14">
+      <SiteHeader
+        right={
+          <Link href="/tools" className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800">
+            도구 열기
+          </Link>
+        }
+      />
 
-      <div role="tabpanel" id="panel-ocr" aria-labelledby="tab-ocr" hidden={tab !== "ocr"}>
-
-      <label
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragging(true);
-        }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDragging(false);
-          const f = e.dataTransfer.files[0];
-          if (f) openFile(f);
-        }}
-        className={`group flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed px-6 py-10 text-center transition focus-within:ring-2 focus-within:ring-blue-500/40 ${
-          dragging
-            ? "border-blue-500 bg-blue-50/60 dark:bg-blue-500/10"
-            : "border-zinc-300 bg-white hover:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-zinc-500"
-        } ${running ? "pointer-events-none opacity-60" : ""}`}
-      >
-        <input
-          type="file"
-          accept="application/pdf,.epub,application/epub+zip"
-          disabled={running}
-          className="sr-only"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            e.target.value = "";
-            if (f) openFile(f);
-          }}
-        />
-        <svg aria-hidden viewBox="0 0 24 24" className="h-8 w-8 text-zinc-400 transition group-hover:text-zinc-600 dark:group-hover:text-zinc-300" fill="none" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 16V4m0 0-4 4m4-4 4 4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
-        </svg>
-        <p className="mt-3 text-sm font-medium">PDF를 끌어다 놓거나 클릭해서 선택</p>
-        <p className="mt-1 text-xs text-zinc-500">{file ? `${file.name} · ${formatSize(file.size)}` : "스캔본, 사진 PDF 모두 가능"}</p>
-      </label>
-
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <div role="radiogroup" aria-label="인식 언어" className="inline-flex rounded-lg bg-zinc-100 p-0.5 text-sm dark:bg-zinc-800">
-          {LANGS.map((l) => (
-            <button
-              key={l.value}
-              role="radio"
-              aria-checked={lang === l.value}
-              disabled={running}
-              onClick={() => setLang(l.value)}
-              className={`rounded-md px-3 py-1.5 transition ${
-                lang === l.value
-                  ? "bg-white font-medium shadow-sm dark:bg-zinc-950"
-                  : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
-              }`}
-            >
-              {l.label}
-            </button>
-          ))}
-        </div>
-        <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
-          <input type="checkbox" className="peer sr-only" checked={skipText} disabled={running} onChange={(e) => setSkipText(e.target.checked)} />
-          <span className="relative h-5 w-9 rounded-full bg-zinc-300 transition peer-checked:bg-blue-600 peer-focus-visible:ring-2 peer-focus-visible:ring-blue-500/40 after:absolute after:top-0.5 after:left-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow after:transition peer-checked:after:translate-x-4 dark:bg-zinc-700" />
-          텍스트가 있는 페이지는 OCR 생략
-        </label>
-      </div>
-
-      {total > 0 && (
-        <section className="mt-8 rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium">{phase}</p>
-              <p className="mt-0.5 text-xs text-zinc-500 tabular-nums">
-                {finished} / {total} 페이지 · {(elapsed / 1000).toFixed(1)}초
-                {running && lanes > 1 && ` · ${lanes}개 병렬`}
-                {avg > 0 && ` · 페이지당 ${(avg / lanes / 1000).toFixed(2)}초`}
-                {eta > 0 && ` · 약 ${Math.ceil(eta)}초 남음`}
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              {running && (
-                <button onClick={() => (cancelled.current = true)} className="rounded-md px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-zinc-800 dark:hover:text-zinc-200">
-                  중단
-                </button>
-              )}
-              <span className="text-2xl font-semibold tracking-tight tabular-nums">{Math.round(overall * 100)}%</span>
-            </div>
-          </div>
-
-          <div
-            className="mt-4 h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800"
-            role="progressbar"
-            aria-label="전체 진행률"
-            aria-valuenow={Math.round(overall * 100)}
-            aria-valuemin={0}
-            aria-valuemax={100}
+      <section className="mt-20 flex flex-col items-start gap-6 sm:mt-28">
+        <AppIcon size={72} className="drop-shadow-[0_8px_24px_rgba(72,33,145,0.35)]" />
+        <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-balance sm:text-5xl">스캔한 책을, 읽을 수 있는 책으로.</h1>
+        <p className="max-w-xl text-lg leading-relaxed text-zinc-600 dark:text-zinc-400">
+          PDF를 OCR해 검색 가능한 PDF로, 문단이 살아 있는 EPUB으로 만들고, 원하는 언어로 번역합니다. 가입도 업로드도 없습니다.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <Link
+            href="/tools?tab=routine"
+            className="rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
           >
-            <div className="h-full rounded-full bg-blue-600 transition-[width] duration-300" style={{ width: `${overall * 100}%` }} />
-          </div>
+            한 번에 변환하기
+          </Link>
+          <Link href="/tools?tab=ocr" className="rounded-lg border border-zinc-300 px-4 py-2.5 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800">
+            도구 하나씩 쓰기
+          </Link>
+        </div>
+      </section>
 
-          <ol className="mt-5 flex flex-wrap gap-1" aria-label="페이지별 상태">
-            {pages.map((p) => (
-              <li
-                key={p.n}
-                title={`${p.n}페이지 · ${LABEL[p.status]}${p.ms ? ` · ${(p.ms / 1000).toFixed(1)}초` : ""}`}
-                aria-label={`${p.n}페이지 ${LABEL[p.status]}`}
-                className={`relative grid h-7 min-w-7 place-items-center overflow-hidden rounded-md px-1 text-[10px] font-medium tabular-nums ${TILE[p.status]}`}
-              >
-                {(p.status === "ocr" || p.status === "render") && (
-                  <span className="absolute inset-x-0 bottom-0 bg-blue-500/25 transition-[height]" style={{ height: `${p.progress * 100}%` }} />
-                )}
-                <span className="relative">{p.n}</span>
-              </li>
-            ))}
-          </ol>
+      <section className="mt-24 grid gap-4 sm:grid-cols-3">
+        {TOOLS.map((t, i) => (
+          <Link
+            key={t.tab}
+            href={`/tools?tab=${t.tab}`}
+            className="group rounded-2xl border border-zinc-200 bg-white p-5 transition hover:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-600"
+          >
+            <p className="text-xs text-zinc-400 tabular-nums">0{i + 1}</p>
+            <h2 className="mt-3 font-medium">
+              {t.label}
+              <span aria-hidden className="ml-1 inline-block text-zinc-400 transition group-hover:translate-x-0.5">
+                →
+              </span>
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-zinc-500">{t.desc}</p>
+          </Link>
+        ))}
+      </section>
 
-          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-zinc-500">
-            {(["done", "text", "ocr", "pending", "error"] as const).map((s) =>
-              s === "error" && !pages.some((p) => p.status === "error") ? null : (
-                <span key={s} className="flex items-center gap-1.5">
-                  <span className={`h-2 w-2 rounded-sm ${TILE[s]}`} />
-                  {LABEL[s]}
-                </span>
-              ),
-            )}
-          </div>
-        </section>
-      )}
-
-      {error && (
-        <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-400">{error}</p>
-      )}
-
-      {withText.length > 0 && (
-        <section className="mt-6 overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="flex items-center justify-between gap-3 border-b border-zinc-200 px-5 py-3 dark:border-zinc-800">
-            <div>
-              <h2 className="text-sm font-medium">결과</h2>
-              <p className="text-xs text-zinc-500 tabular-nums">{allText.length.toLocaleString()}자</p>
+      <section className="mt-24">
+        <h2 className="text-sm font-medium text-zinc-500">어떻게 다른가</h2>
+        <div className="mt-6 grid gap-x-10 gap-y-8 sm:grid-cols-2">
+          {FEATURES.map((f) => (
+            <div key={f.title}>
+              <h3 className="font-medium">{f.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">{f.body}</p>
             </div>
-            <div className="flex gap-2">
-              <button onClick={copy} className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800">
-                {copied ? "복사됨" : "복사"}
-              </button>
-              <button onClick={toTranslator} disabled={running} className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm hover:bg-zinc-50 disabled:opacity-40 dark:border-zinc-700 dark:hover:bg-zinc-800">
-                번역
-              </button>
-              {(["pdf", "epub"] as const).map((k) => (
-                <button
-                  key={k}
-                  onClick={() => exportAs(k)}
-                  disabled={running || !!exporting}
-                  className="flex items-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-40 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
-                >
-                  <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v12m0 0 4-4m-4 4-4-4M4 20h16" />
-                  </svg>
-                  {exporting === k ? "만드는 중…" : k === "pdf" ? "검색 가능한 PDF" : "EPUB"}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="max-h-[28rem] overflow-auto px-5 py-4">
-            {withText.map((p) => (
-              <article key={p.n} className="mb-5 last:mb-0">
-                <p className="mb-1.5 text-[11px] font-medium tracking-wide text-zinc-400">
-                  {p.n}페이지{p.status === "text" && " · 텍스트 레이어"}
-                </p>
-                <p className="text-sm leading-relaxed whitespace-pre-wrap">{p.text.trim()}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-      )}
-
-      </div>
-
-      <div role="tabpanel" id="panel-translate" aria-labelledby="tab-translate" hidden={tab !== "translate"}>
-        <Translator job={job} setJob={setJob} />
-      </div>
+          ))}
+        </div>
+      </section>
     </main>
   );
-}
-
-const SCALE = 2.5; // render scale for OCR, ~180 DPI
-const MIN_CONFIDENCE = 65;
-
-const TILE: Record<Status, string> = {
-  pending: "bg-zinc-100 text-zinc-400 ring-1 ring-zinc-200 ring-inset dark:bg-zinc-800 dark:text-zinc-500 dark:ring-zinc-700",
-  render: "bg-blue-50 text-blue-700 ring-1 ring-blue-500 ring-inset dark:bg-blue-500/10 dark:text-blue-300",
-  ocr: "bg-blue-50 text-blue-700 ring-1 ring-blue-500 ring-inset dark:bg-blue-500/10 dark:text-blue-300",
-  text: "bg-emerald-500 text-white",
-  done: "bg-blue-600 text-white",
-  error: "bg-red-500 text-white",
-};
-
-function formatSize(bytes: number) {
-  return bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)}KB` : `${(bytes / 1024 / 1024).toFixed(1)}MB`;
 }

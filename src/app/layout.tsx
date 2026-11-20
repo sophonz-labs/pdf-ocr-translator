@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { SiteFooter } from "@/components/site-footer";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PDF·EPUB 도구",
-  description: "스캔 PDF를 브라우저 안에서 OCR해 검색 가능한 PDF와 EPUB으로 만들고, EPUB을 단계별로 번역한다",
+  title: "PDF OCR · sophonz labs",
+  description: "스캔한 PDF를 브라우저 안에서 OCR해 검색 가능한 PDF와 문단을 살린 EPUB으로 만들고, 243개 언어로 번역합니다.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -23,7 +24,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="ko"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <SiteFooter />
+      </body>
     </html>
   );
 }

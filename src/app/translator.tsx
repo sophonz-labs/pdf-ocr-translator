@@ -1,15 +1,17 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import { COMMON_LANGS, LANGS } from "@/lib/translate";
 import { save } from "./save";
 
-type Mode = "replace" | "both";
+export type Mode = "replace" | "both";
 /** A book to translate: its paragraphs, and how to build the EPUB once translations are in. */
 export type Job = {
   name: string;
   segments: { tag: string; text: string }[];
   build: (tr: (string | undefined)[], mode: Mode, lang: string) => Uint8Array;
+  /** Translations already made (by the one-shot routine), to review and edit here. */
+  preset?: { tr: (string | undefined)[]; source: string; target: string; mode: Mode };
 };
 type St = "" | "ok" | "fail" | "edit";
 
@@ -38,8 +40,14 @@ function langNames() {
   return names;
 }
 
-function LangSelect({ label, value, onChange, auto, disabled }: { label: string; value: string; onChange: (v: string) => void; auto?: boolean; disabled?: boolean }) {
-  const all = langNames();
+export function LangSelect({ label, value, onChange, auto, disabled }: { label: string; value: string; onChange: (v: string) => void; auto?: boolean; disabled?: boolean }) {
+  // Names come from Intl, whose data differs between Node and the browser: build the list on the client only.
+  const client = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+  const all = client ? langNames() : [];
   const opt = ({ code, name }: { code: string; name: string }) => (
     <option key={code} value={code}>
       {name} · {code}
@@ -50,12 +58,23 @@ function LangSelect({ label, value, onChange, auto, disabled }: { label: string;
       {label}
       <select value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} className={`${select} max-w-48 text-zinc-900 dark:text-zinc-100`}>
         {auto && <option value="auto">자동 감지</option>}
-        <optgroup label="자주 쓰는 언어">{COMMON_LANGS.map((c) => opt(all.find((l) => l.code === c)!))}</optgroup>
-        <optgroup label={`전체 ${all.length}개`}>{all.map(opt)}</optgroup>
+        {client ? (
+          <>
+            <optgroup label="자주 쓰는 언어">{COMMON_LANGS.map((c) => opt(all.find((l) => l.code === c)!))}</optgroup>
+            <optgroup label={`전체 ${all.length}개`}>{all.map(opt)}</optgroup>
+          </>
+        ) : (
+          value !== "auto" && <option value={value}>{value}</option>
+        )}
       </select>
     </label>
   );
 }
+
+// A new job object starts the review over (even the same book opened again).
+const keys = new WeakMap<Job, number>();
+let lastKey = 0;
+const jobKey = (j: Job) => keys.get(j) ?? (keys.set(j, ++lastKey), lastKey);
 
 const FILTERS = [
   ["all", "전체"],
@@ -140,8 +159,7 @@ export function Translator({ job, setJob }: { job: Job | null; setJob: (j: Job |
               {input}
             </label>
           </div>
-          {/* key: a new book starts with a clean slate */}
-          <Review key={`${job.name}:${job.segments.length}`} job={job} />
+              <Review key={jobKey(job)} job={job} />
         </section>
       )}
     </>
@@ -150,11 +168,12 @@ export function Translator({ job, setJob }: { job: Job | null; setJob: (j: Job |
 
 function Review({ job }: { job: Job }) {
   const n = job.segments.length;
-  const [source, setSource] = useState("auto");
-  const [target, setTarget] = useState("ko");
-  const [mode, setMode] = useState<Mode>("both");
-  const [tr, setTr] = useState<(string | undefined)[]>(() => Array(n).fill(undefined));
-  const [st, setSt] = useState<St[]>(() => Array(n).fill(""));
+  const p = job.preset;
+  const [source, setSource] = useState(p?.source ?? "auto");
+  const [target, setTarget] = useState(p?.target ?? "ko");
+  const [mode, setMode] = useState<Mode>(p?.mode ?? "both");
+  const [tr, setTr] = useState<(string | undefined)[]>(() => p?.tr ?? Array(n).fill(undefined));
+  const [st, setSt] = useState<St[]>(() => (p ? p.tr.map((t) => (t ? "ok" : "fail")) : Array(n).fill("")));
   const [sel, setSel] = useState<Set<number>>(new Set());
   const [filter, setFilter] = useState<(typeof FILTERS)[number][0]>("all");
   const [page, setPage] = useState(0);
