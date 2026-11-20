@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { SiteHeader } from "@/components/site";
-import { DICT, type Lang } from "@/i18n";
+import type { Lang } from "@/i18n";
+import { pageMeta } from "../../og";
 
 export async function generateMetadata({ params }: PageProps<"/[lang]/privacy">): Promise<Metadata> {
-  return { title: DICT[(await params).lang as Lang].meta.privacy };
+  return pageMeta((await params).lang as Lang, "privacy");
 }
 
 const mail = (

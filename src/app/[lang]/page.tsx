@@ -1,10 +1,16 @@
 import Link from "next/link";
 import { AppIcon } from "@/components/brand";
 import { SiteHeader, TOOLS } from "@/components/site";
+import type { Metadata } from "next";
 import { DICT, type Lang } from "@/i18n";
+import { pageMeta } from "../og";
 
 // Set once the extension is published (build env NEXT_PUBLIC_CWS_URL).
 const STORE_URL = process.env.NEXT_PUBLIC_CWS_URL;
+
+export async function generateMetadata({ params }: PageProps<"/[lang]">): Promise<Metadata> {
+  return pageMeta((await params).lang as Lang, "home");
+}
 
 export default async function Landing({ params }: PageProps<"/[lang]">) {
   const lang = (await params).lang as Lang;

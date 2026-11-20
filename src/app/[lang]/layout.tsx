@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Geist, Geist_Mono } from "next/font/google";
 import { SiteFooter } from "@/components/site-footer";
-import { DICT, isLang, LOCALES } from "@/i18n";
+import { isLang, LOCALES } from "@/i18n";
+import { pageMeta, SITE } from "../og";
 import "../globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -13,13 +14,7 @@ export const generateStaticParams = () => LOCALES.map((lang) => ({ lang }));
 
 export async function generateMetadata({ params }: LayoutProps<"/[lang]">): Promise<Metadata> {
   const { lang } = await params;
-  const t = DICT[isLang(lang) ? lang : "en"].meta;
-  return {
-    metadataBase: new URL("https://ocr.sophonz.com"),
-    title: t.title,
-    description: t.description,
-    alternates: { languages: Object.fromEntries(LOCALES.map((l) => [l, `/${l}/`])) },
-  };
+  return { metadataBase: new URL(SITE), ...pageMeta(isLang(lang) ? lang : "en", "home") };
 }
 
 export default async function RootLayout({ children, params }: LayoutProps<"/[lang]">) {

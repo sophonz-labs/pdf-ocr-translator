@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
+import { pageMeta, SITE } from "../og";
 import Link from "next/link";
 
-export const metadata: Metadata = { title: "PDF OCR · sophonz labs" };
+export const metadata: Metadata = { metadataBase: new URL(SITE), ...pageMeta("en", "home"), alternates: undefined };
 
 // Static hosting has no server redirect: pick the saved language (default English) in the browser.
 const forward = `var l="en";try{if(localStorage.getItem("lang")==="ko")l="ko"}catch(e){}location.replace("/"+l+"/"+location.search+location.hash)`;
