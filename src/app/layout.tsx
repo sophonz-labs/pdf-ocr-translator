@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PDF OCR",
-  description: "스캔 PDF를 브라우저 안에서 OCR해 검색 가능한 PDF와 EPUB으로 만든다",
+  title: "PDF·EPUB 도구",
+  description: "스캔 PDF를 브라우저 안에서 OCR해 검색 가능한 PDF와 EPUB으로 만들고, EPUB을 단계별로 번역한다",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

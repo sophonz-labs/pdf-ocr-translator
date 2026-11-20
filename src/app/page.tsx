@@ -18,6 +18,20 @@ const LABEL: Record<Status, string> = {
   error: "오류",
 };
 
+type Tab = "ocr" | "translate";
+const TABS: { id: Tab; label: string; desc: string }[] = [
+  {
+    id: "ocr",
+    label: "PDF OCR",
+    desc: "스캔한 PDF에서 한글과 영어 텍스트를 뽑아 검색 가능한 PDF나 EPUB으로 만듭니다. EPUB은 줄바꿈 대신 문단 단위로 다시 짜고 제목과 굵게·기울임을 살립니다. 파일은 서버로 올라가지 않고 이 브라우저 안에서만 처리됩니다.",
+  },
+  {
+    id: "translate",
+    label: "EPUB 번역",
+    desc: "EPUB을 문단 단위로 번역합니다. 불러오기 → 번역 → 검토·수정 → EPUB 만들기 순서로 진행하고, 번역문은 직접 고치거나 골라서 다시 번역할 수 있습니다. 이 기능만 문단 텍스트를 Google 번역으로 보냅니다.",
+  },
+];
+
 const LANGS = [
   { value: "kor+eng", label: "한국어 + 영어" },
   { value: "kor", label: "한국어" },
@@ -36,6 +50,7 @@ export default function Home() {
   const [exporting, setExporting] = useState<"pdf" | "epub" | null>(null);
   const [copied, setCopied] = useState(false);
   const [job, setJob] = useState<Job | null>(null);
+  const [tab, setTab] = useState<Tab>("ocr");
   const [dragging, setDragging] = useState(false);
   const cancelled = useRef(false);
   const [lanes, setLanes] = useState(1);
@@ -231,14 +246,14 @@ export default function Home() {
         return buildEpub({ title: src.title ?? src.name, author: src.author, lang: mode === "replace" ? lang : guessLang(blocks), trLang: lang, blocks: out });
       },
     });
-    requestAnimationFrame(() => document.getElementById("translate")?.scrollIntoView({ behavior: "smooth" }));
+    setTab("translate");
   }
 
   async function openFile(f: File) {
     if (/\.epub$/i.test(f.name)) {
       try {
         setJob(await jobFromEpub(f));
-        requestAnimationFrame(() => document.getElementById("translate")?.scrollIntoView({ behavior: "smooth" }));
+        setTab("translate");
       } catch (e) {
         setError(`EPUB을 읽지 못했습니다: ${e instanceof Error ? e.message : String(e)}`);
       }
@@ -262,18 +277,37 @@ export default function Home() {
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-12 sm:py-20">
-      <header className="mb-10">
+      <header className="mb-8">
         <div className="flex items-center gap-2.5">
           <div className="grid h-8 w-8 place-items-center rounded-lg bg-zinc-900 text-[11px] font-bold tracking-tight text-white dark:bg-white dark:text-zinc-900">
             OCR
           </div>
-          <h1 className="text-xl font-semibold tracking-tight">PDF OCR</h1>
+          <h1 className="text-xl font-semibold tracking-tight">PDF·EPUB 도구</h1>
         </div>
-        <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
-          스캔한 PDF에서 한글과 영어 텍스트를 뽑아 검색 가능한 PDF나 EPUB으로 만듭니다. EPUB은 줄바꿈 대신 문단 단위로 다시
-          짜고 제목과 굵게·기울임을 살립니다. 파일은 서버로 올라가지 않고 이 브라우저 안에서만 처리됩니다.
-        </p>
+        <nav role="tablist" aria-label="도구" className="mt-6 flex gap-1 border-b border-zinc-200 dark:border-zinc-800">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              role="tab"
+              id={`tab-${t.id}`}
+              aria-selected={tab === t.id}
+              aria-controls={`panel-${t.id}`}
+              onClick={() => setTab(t.id)}
+              className={`-mb-px border-b-2 px-3 py-2 text-sm transition ${
+                tab === t.id
+                  ? "border-zinc-900 font-medium text-zinc-900 dark:border-white dark:text-white"
+                  : "border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+              }`}
+            >
+              {t.label}
+              {t.id === "ocr" && running && <span className="ml-1.5 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-blue-600 align-middle" />}
+            </button>
+          ))}
+        </nav>
+        <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">{TABS.find((t) => t.id === tab)!.desc}</p>
       </header>
+
+      <div role="tabpanel" id="panel-ocr" aria-labelledby="tab-ocr" hidden={tab !== "ocr"}>
 
       <label
         onDragOver={(e) => {
@@ -307,8 +341,8 @@ export default function Home() {
         <svg aria-hidden viewBox="0 0 24 24" className="h-8 w-8 text-zinc-400 transition group-hover:text-zinc-600 dark:group-hover:text-zinc-300" fill="none" stroke="currentColor" strokeWidth={1.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 16V4m0 0-4 4m4-4 4 4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
         </svg>
-        <p className="mt-3 text-sm font-medium">PDF나 EPUB을 끌어다 놓거나 클릭해서 선택</p>
-        <p className="mt-1 text-xs text-zinc-500">{file ? `${file.name} · ${formatSize(file.size)}` : "PDF는 OCR, EPUB은 바로 번역으로"}</p>
+        <p className="mt-3 text-sm font-medium">PDF를 끌어다 놓거나 클릭해서 선택</p>
+        <p className="mt-1 text-xs text-zinc-500">{file ? `${file.name} · ${formatSize(file.size)}` : "스캔본, 사진 PDF 모두 가능"}</p>
       </label>
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
@@ -445,7 +479,11 @@ export default function Home() {
         </section>
       )}
 
-      <Translator job={job} setJob={setJob} />
+      </div>
+
+      <div role="tabpanel" id="panel-translate" aria-labelledby="tab-translate" hidden={tab !== "translate"}>
+        <Translator job={job} setJob={setJob} />
+      </div>
     </main>
   );
 }

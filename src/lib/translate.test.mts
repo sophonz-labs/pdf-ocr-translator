@@ -39,6 +39,10 @@ a = fake(false);
 tr = await translateTexts(texts, "ko", { fetch: a.f, only: [2] });
 assert.deepEqual(tr, [undefined, undefined, "ALL BOLD"]);
 
+let srcSeen = "";
+await translateTexts(["x"], "ko", { source: "en", fetch: async (u: string) => ((srcSeen = new URL(u).searchParams.get("query.source_language")!), new Response(JSON.stringify({ translation: "y" }))) });
+assert.equal(srcSeen, "en");
+
 const failing = async () => new Response("", { status: 500 });
 // shortcut: retries sleep 1s+2s, so this case takes ~3s per block; keep it to one block.
 tr = await translateTexts(["One"], "ko", { fetch: failing });

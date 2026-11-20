@@ -11,10 +11,10 @@ const LANES = 4;
 
 export type Fetcher = (url: string, init?: RequestInit) => Promise<Response>;
 
-export async function translateText(text: string, target: string, f: Fetcher = fetch, signal?: AbortSignal) {
+export async function translateText(text: string, target: string, f: Fetcher = fetch, signal?: AbortSignal, source = "auto") {
   const q = new URLSearchParams({
     "params.client": "gtx",
-    "query.source_language": "auto",
+    "query.source_language": source,
     "query.target_language": target,
     "query.display_language": "en-US",
     data_types: "TRANSLATION",
@@ -57,6 +57,8 @@ function pieces(text: string): string[] {
 }
 
 type Opts = {
+  /** Source language code; default "auto" (Google detects it). */
+  source?: string;
   /** Indices to translate; default all non-empty. */
   only?: number[];
   onProgress?: (done: number, total: number) => void;
@@ -98,7 +100,7 @@ export async function translateTexts(texts: string[], target: string, opts: Opts
   const one = async (i: number) => {
     try {
       const parts = [];
-      for (const p of pieces(texts[i])) parts.push(await translateText(p, target, f, opts.signal));
+      for (const p of pieces(texts[i])) parts.push(await translateText(p, target, f, opts.signal, opts.source));
       set(i, parts.join(" "));
     } catch (e) {
       if (opts.signal?.aborted) throw e;
@@ -115,7 +117,7 @@ export async function translateTexts(texts: string[], target: string, opts: Opts
       let parts: string[] | null = null;
       if (batch.length > 1) {
         try {
-          parts = (await translateText(batch.map((i) => texts[i]).join(SEP), target, f, opts.signal)).split(/\n\s*\n/);
+          parts = (await translateText(batch.map((i) => texts[i]).join(SEP), target, f, opts.signal, opts.source)).split(/\n\s*\n/);
         } catch (e) {
           if (opts.signal?.aborted) throw e;
         }
@@ -145,13 +147,7 @@ export function applyTranslations(blocks: Block[], tr: (string | undefined)[], m
   });
 }
 
-export const TARGETS = [
-  ["ko", "한국어"],
-  ["en", "English"],
-  ["ja", "日本語"],
-  ["zh-CN", "中文(简体)"],
-  ["zh-TW", "中文(繁體)"],
-  ["de", "Deutsch"],
-  ["fr", "Français"],
-  ["es", "Español"],
-] as const;
+/** Every language code Google Translate takes (same list as the calibre plugin's Google engines). */
+// prettier-ignore
+export const LANGS = ["ab","ace","ach","aa","af","sq","alz","am","ar","hy","as","av","awa","ay","az","ban","bal","bm","bci","ba","eu","btx","bts","bbc","be","bem","bn","bew","bho","bik","bs","br","bg","bua","yue","ca","ceb","ch","ce","ny","zh-CN","zh-TW","chk","cv","co","crh","hr","cs","da","fa-AF","dv","din","doi","dov","nl","dyu","dz","en","eo","et","ee","fo","fj","tl","fi","fon","fr","fy","fur","ff","gaa","gl","ka","de","el","gn","gu","ht","cnh","ha","haw","iw","hil","hi","hmn","hu","hrx","iba","is","ig","ilo","id","ga","it","jam","ja","jw","kac","kl","kn","kr","pam","kk","kha","km","cgg","kg","rw","ktu","trp","kv","gom","ko","kri","ku","ckb","ky","lo","ltg","la","lv","lij","li","ln","lt","lmo","lg","luo","lb","mk","mad","mai","mak","mg","ms","ms-Arab","ml","mt","mam","gv","mi","mr","mh","mwr","mfe","chm","mni-Mtei","min","lus","mn","my","nhe","ndc-ZW","nr","new","ne","bm-Nkoo","no","nus","oc","or","om","os","pag","pap","ps","fa","pl","pt","pt-PT","pa","pa-Arab","qu","kek","rom","ro","rn","ru","se","sm","sg","sa","sat-Latn","gd","nso","sr","st","crs","shn","sn","scn","szl","sd","si","sk","sl","so","es","su","sus","sw","ss","sv","ty","tg","ber-Latn","ber","ta","tt","te","tet","th","bo","ti","tiv","tpi","to","ts","tn","tcy","tum","tr","tk","tyv","ak","udm","uk","ur","ug","uz","ve","vec","vi","war","cy","wo","xh","sah","yi","yo","yua","zap","zu"];
+export const COMMON_LANGS = ["ko", "en", "ja", "zh-CN", "zh-TW", "de", "fr", "es", "ru"];

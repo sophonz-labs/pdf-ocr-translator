@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { TARGETS } from "@/lib/translate";
+import { COMMON_LANGS, LANGS } from "@/lib/translate";
 import { save } from "./save";
 
 type Mode = "replace" | "both";
@@ -18,6 +18,43 @@ export async function jobFromEpub(f: File): Promise<Job> {
   const book = readEpub(new Uint8Array(await f.arrayBuffer()));
   if (!book.segments.length) throw new Error("번역할 문단을 찾지 못했습니다");
   return { name: f.name.replace(/\.epub$/i, ""), segments: book.segments, build: (tr, mode, lang) => writeEpub(book, tr, mode, lang) };
+}
+
+const NAME_FIX: Record<string, string> = { "zh-CN": "중국어(간체)", "zh-TW": "중국어(번체)" };
+let names: { code: string; name: string }[] | null = null;
+/** Google's language codes with Korean names, sorted by name. Built on first use (client only). */
+function langNames() {
+  if (!names) {
+    const dn = new Intl.DisplayNames(["ko"], { type: "language", fallback: "code" });
+    const of = (c: string) => {
+      try {
+        return dn.of(c) ?? c;
+      } catch {
+        return c;
+      }
+    };
+    names = LANGS.map((code) => ({ code, name: NAME_FIX[code] ?? of(code) })).sort((a, b) => a.name.localeCompare(b.name, "ko"));
+  }
+  return names;
+}
+
+function LangSelect({ label, value, onChange, auto, disabled }: { label: string; value: string; onChange: (v: string) => void; auto?: boolean; disabled?: boolean }) {
+  const all = langNames();
+  const opt = ({ code, name }: { code: string; name: string }) => (
+    <option key={code} value={code}>
+      {name} · {code}
+    </option>
+  );
+  return (
+    <label className="flex items-center gap-1.5 text-xs text-zinc-500">
+      {label}
+      <select value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} className={`${select} max-w-48 text-zinc-900 dark:text-zinc-100`}>
+        {auto && <option value="auto">자동 감지</option>}
+        <optgroup label="자주 쓰는 언어">{COMMON_LANGS.map((c) => opt(all.find((l) => l.code === c)!))}</optgroup>
+        <optgroup label={`전체 ${all.length}개`}>{all.map(opt)}</optgroup>
+      </select>
+    </label>
+  );
 }
 
 const FILTERS = [
@@ -50,39 +87,70 @@ export function Translator({ job, setJob }: { job: Job | null; setJob: (j: Job |
     }
   }
 
+  const [dragging, setDragging] = useState(false);
+  const input = (
+    <input
+      type="file"
+      accept=".epub,application/epub+zip"
+      className="sr-only"
+      onChange={(e) => {
+        const f = e.target.files?.[0];
+        e.target.value = "";
+        if (f) open(f);
+      }}
+    />
+  );
+
   return (
-    <section id="translate" className="mt-10 rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-5 py-3 dark:border-zinc-800">
-        <div>
-          <h2 className="text-sm font-medium">EPUB 번역</h2>
-          <p className="text-xs text-zinc-500">
-            {job ? `${job.name} · ${job.segments.length.toLocaleString()}문단` : "EPUB을 올리거나 위 결과에서 '번역'을 누르세요."} Google 번역(무료, New)을
-            쓰며 문단 텍스트가 Google로 전송됩니다.
-          </p>
-        </div>
-        <label className={`${btn} cursor-pointer`}>
-          {loading ? "읽는 중…" : job ? "다른 EPUB 열기" : "EPUB 열기"}
-          <input
-            type="file"
-            accept=".epub,application/epub+zip"
-            className="sr-only"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              e.target.value = "";
-              if (f) open(f);
-            }}
-          />
+    <>
+      {!job && (
+        <label
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragging(true);
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragging(false);
+            const f = e.dataTransfer.files[0];
+            if (f) open(f);
+          }}
+          className={`flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed px-6 py-10 text-center transition focus-within:ring-2 focus-within:ring-blue-500/40 ${
+            dragging
+              ? "border-blue-500 bg-blue-50/60 dark:bg-blue-500/10"
+              : "border-zinc-300 bg-white hover:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-zinc-500"
+          }`}
+        >
+          {input}
+          <p className="text-sm font-medium">{loading ? "읽는 중…" : "EPUB을 끌어다 놓거나 클릭해서 선택"}</p>
+          <p className="mt-1 text-xs text-zinc-500">PDF는 &lsquo;PDF OCR&rsquo; 탭에서 변환한 뒤 결과의 &lsquo;번역&rsquo;을 누르면 여기로 옵니다.</p>
         </label>
-      </div>
-      {error && <p className="mx-5 mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-400">{error}</p>}
-      {/* key: a new book starts with a clean slate */}
-      {job && <Review key={`${job.name}:${job.segments.length}`} job={job} />}
-    </section>
+      )}
+      {error && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-400">{error}</p>}
+      {job && (
+        <section className="rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-5 py-3 dark:border-zinc-800">
+            <div className="min-w-0">
+              <h2 className="truncate text-sm font-medium">{job.name}</h2>
+              <p className="text-xs text-zinc-500 tabular-nums">{job.segments.length.toLocaleString()}문단</p>
+            </div>
+            <label className={`${btn} cursor-pointer`}>
+              {loading ? "읽는 중…" : "다른 EPUB 열기"}
+              {input}
+            </label>
+          </div>
+          {/* key: a new book starts with a clean slate */}
+          <Review key={`${job.name}:${job.segments.length}`} job={job} />
+        </section>
+      )}
+    </>
   );
 }
 
 function Review({ job }: { job: Job }) {
   const n = job.segments.length;
+  const [source, setSource] = useState("auto");
   const [target, setTarget] = useState("ko");
   const [mode, setMode] = useState<Mode>("both");
   const [tr, setTr] = useState<(string | undefined)[]>(() => Array(n).fill(undefined));
@@ -116,6 +184,7 @@ function Review({ job }: { job: Job }) {
         target,
         {
           only,
+          source,
           signal: ctl.signal,
           onProgress: (d, t) => setProgress([d, t]),
           onResult: (i, t) => {
@@ -173,14 +242,16 @@ function Review({ job }: { job: Job }) {
         ))}
       </ol>
 
+      <div className="flex flex-wrap items-center gap-2 px-5 pt-3">
+        <LangSelect label="원문" value={source} onChange={setSource} auto disabled={!!progress} />
+        <span aria-hidden className="text-zinc-400">→</span>
+        <LangSelect label="번역" value={target} onChange={changeTarget} disabled={!!progress} />
+        <span className="ml-auto text-xs text-zinc-500 tabular-nums">
+          번역 {done}/{n}
+          {failed > 0 && <span className="text-red-600"> · 실패 {failed}</span>}
+        </span>
+      </div>
       <div className="flex flex-wrap items-center gap-2 px-5 py-3">
-        <select aria-label="번역할 언어" value={target} disabled={!!progress} onChange={(e) => changeTarget(e.target.value)} className={select}>
-          {TARGETS.map(([code, name]) => (
-            <option key={code} value={code}>
-              {name}
-            </option>
-          ))}
-        </select>
         <button className={primary} disabled={!!progress || !todo.length} onClick={() => translate(todo)}>
           미번역 {todo.length.toLocaleString()}개 번역
         </button>
@@ -197,10 +268,6 @@ function Review({ job }: { job: Job }) {
             </button>
           </>
         )}
-        <span className="ml-auto text-xs text-zinc-500 tabular-nums">
-          번역 {done}/{n}
-          {failed > 0 && <span className="text-red-600"> · 실패 {failed}</span>}
-        </span>
       </div>
       {progress && (
         <div className="mx-5 mb-2 h-1 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
