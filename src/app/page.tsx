@@ -40,18 +40,18 @@ export default function Landing() {
         </p>
         <div className="flex flex-wrap gap-3">
           <Link
-            href="/tools?tab=routine"
+            href="/tools?tab=ocr"
             className="rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
           >
-            한 번에 변환하기
+            PDF 변환하기
           </Link>
-          <Link href="/tools?tab=ocr" className="rounded-lg border border-zinc-300 px-4 py-2.5 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800">
-            도구 하나씩 쓰기
+          <Link href="/tools?tab=translate" className="rounded-lg border border-zinc-300 px-4 py-2.5 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800">
+            EPUB 번역하기
           </Link>
         </div>
       </section>
 
-      <section className="mt-24 grid gap-4 sm:grid-cols-3">
+      <section className="mt-24 grid gap-4 sm:grid-cols-2">
         {TOOLS.map((t, i) => (
           <Link
             key={t.tab}

@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "도구 · PDF OCR" };
 
 async function WithTab({ searchParams }: { searchParams: PageProps<"/tools">["searchParams"] }) {
   const tab = (await searchParams).tab;
-  return <Tools initialTab={TOOLS.find((t) => t.tab === tab)?.tab ?? "routine"} />;
+  return <Tools initialTab={TOOLS.find((t) => t.tab === tab)?.tab ?? "ocr"} />;
 }
 
 export default function Page({ searchParams }: PageProps<"/tools">) {

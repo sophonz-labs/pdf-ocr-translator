@@ -4,14 +4,12 @@ import { useRef, useState, useSyncExternalStore } from "react";
 import { COMMON_LANGS, LANGS } from "@/lib/translate";
 import { save } from "./save";
 
-export type Mode = "replace" | "both";
+type Mode = "replace" | "both";
 /** A book to translate: its paragraphs, and how to build the EPUB once translations are in. */
 export type Job = {
   name: string;
   segments: { tag: string; text: string }[];
   build: (tr: (string | undefined)[], mode: Mode, lang: string) => Uint8Array;
-  /** Translations already made (by the one-shot routine), to review and edit here. */
-  preset?: { tr: (string | undefined)[]; source: string; target: string; mode: Mode };
 };
 type St = "" | "ok" | "fail" | "edit";
 
@@ -40,7 +38,7 @@ function langNames() {
   return names;
 }
 
-export function LangSelect({ label, value, onChange, auto, disabled }: { label: string; value: string; onChange: (v: string) => void; auto?: boolean; disabled?: boolean }) {
+function LangSelect({ label, value, onChange, auto, disabled }: { label: string; value: string; onChange: (v: string) => void; auto?: boolean; disabled?: boolean }) {
   // Names come from Intl, whose data differs between Node and the browser: build the list on the client only.
   const client = useSyncExternalStore(
     () => () => {},
@@ -90,7 +88,18 @@ const primary =
   "rounded-lg bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-40 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200";
 const select = "rounded-md border border-zinc-200 bg-transparent px-1.5 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900";
 
-export function Translator({ job, setJob }: { job: Job | null; setJob: (j: Job | null) => void }) {
+/** `made`: name of the EPUB just built in the OCR tab, offered here so it can be picked up without saving and re-opening it. */
+export function Translator({
+  job,
+  setJob,
+  made,
+  onUseMade,
+}: {
+  job: Job | null;
+  setJob: (j: Job | null) => void;
+  made: string | null;
+  onUseMade: () => void;
+}) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -122,6 +131,17 @@ export function Translator({ job, setJob }: { job: Job | null; setJob: (j: Job |
 
   return (
     <>
+      {!job && made && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-blue-200 bg-blue-50/60 px-5 py-4 dark:border-blue-500/30 dark:bg-blue-500/10">
+          <div className="min-w-0">
+            <p className="text-sm font-medium">PDF OCR 탭에서 만든 EPUB이 있습니다</p>
+            <p className="truncate text-xs text-zinc-500">{made}</p>
+          </div>
+          <button className={primary} onClick={onUseMade}>
+            이 EPUB으로 번역 시작
+          </button>
+        </div>
+      )}
       {!job && (
         <label
           onDragOver={(e) => {
@@ -143,7 +163,7 @@ export function Translator({ job, setJob }: { job: Job | null; setJob: (j: Job |
         >
           {input}
           <p className="text-sm font-medium">{loading ? "읽는 중…" : "EPUB을 끌어다 놓거나 클릭해서 선택"}</p>
-          <p className="mt-1 text-xs text-zinc-500">PDF는 &lsquo;PDF OCR&rsquo; 탭에서 변환한 뒤 결과의 &lsquo;번역&rsquo;을 누르면 여기로 옵니다.</p>
+          <p className="mt-1 text-xs text-zinc-500">PDF는 &lsquo;PDF OCR&rsquo; 탭에서 EPUB으로 만든 뒤 &lsquo;EPUB 번역으로 이어가기&rsquo;를 누르면 여기로 이어집니다.</p>
         </label>
       )}
       {error && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-400">{error}</p>}
@@ -168,12 +188,11 @@ export function Translator({ job, setJob }: { job: Job | null; setJob: (j: Job |
 
 function Review({ job }: { job: Job }) {
   const n = job.segments.length;
-  const p = job.preset;
-  const [source, setSource] = useState(p?.source ?? "auto");
-  const [target, setTarget] = useState(p?.target ?? "ko");
-  const [mode, setMode] = useState<Mode>(p?.mode ?? "both");
-  const [tr, setTr] = useState<(string | undefined)[]>(() => p?.tr ?? Array(n).fill(undefined));
-  const [st, setSt] = useState<St[]>(() => (p ? p.tr.map((t) => (t ? "ok" : "fail")) : Array(n).fill("")));
+  const [source, setSource] = useState("auto");
+  const [target, setTarget] = useState("ko");
+  const [mode, setMode] = useState<Mode>("both");
+  const [tr, setTr] = useState<(string | undefined)[]>(() => Array(n).fill(undefined));
+  const [st, setSt] = useState<St[]>(() => Array(n).fill(""));
   const [sel, setSel] = useState<Set<number>>(new Set());
   const [filter, setFilter] = useState<(typeof FILTERS)[number][0]>("all");
   const [page, setPage] = useState(0);

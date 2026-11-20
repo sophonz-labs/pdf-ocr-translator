@@ -9,8 +9,8 @@ PDF OCR that runs entirely in the browser. Files never leave the page.
 - Pages are processed in parallel (one tesseract worker per lane, up to 4).
 - "EPUB" rebuilds reading structure from line positions (`src/lib/layout.ts`): paragraphs from indentation, spacing and short last lines; headings from font size; running headers, page numbers and footnotes separated; hyphenation and Korean mid-word line breaks joined using the document's own vocabulary. Bold/italic come from font names (digital PDFs only; OCR has no font style).
 - EPUB translation works on any EPUB you open, or on the OCR result through the "번역" button. It is step by step, like the advanced mode of [ebook-translator-calibre-plugin](https://github.com/bookfere/ebook-translator-calibre-plugin): load the paragraphs, translate all untranslated or only selected ones, review and edit each translation, then build the EPUB with the translation alone or under the original. Source (or auto-detect) and target can be any of the 243 languages Google Translate takes. It uses Google Translate's keyless endpoint, the same one as the plugin's "Google (Free) - New" engine (`src/lib/translate.ts`). The browser calls it directly. For an uploaded EPUB, only paragraph text changes; every other file in the archive is kept (`src/lib/epub-io.ts`). This is the only feature that sends text off the device.
-- "한 번에 변환" (`src/app/routine.tsx`) runs the steps in one go: OCR, searchable PDF, EPUB, translated EPUB. The translation then opens in the EPUB 번역 tab for review.
-- Pages: `/` is the landing page; `/tools?tab=routine|ocr|translate` holds the three tools. The OCR pipeline itself is in `src/app/ocr.ts`.
+- The OCR result stays in the page: "EPUB 번역으로 이어가기" (or the prompt in the EPUB 번역 tab) continues with the same book, no save and re-open needed.
+- Pages: `/` is the landing page; `/tools?tab=ocr|translate` holds the two tools. The OCR pipeline itself is in `src/app/ocr.ts`.
 - Models: `public/models/{kor,eng}.traineddata` from [tessdata_fast](https://github.com/tesseract-ocr/tessdata_fast).
 
 ## Run

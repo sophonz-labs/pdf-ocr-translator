@@ -3,7 +3,6 @@
 import { useRef, useState } from "react";
 import { SiteHeader, TOOLS, type ToolTab } from "@/components/site";
 import { epubFromOcr, jobFromOcr, ocrPdf, searchablePdf, type OcrResult, type Page, type Status } from "../ocr";
-import { Routine } from "../routine";
 import { save } from "../save";
 import { jobFromEpub, Translator, type Job } from "../translator";
 
@@ -43,6 +42,7 @@ export function Tools({ initialTab }: { initialTab: ToolTab }) {
   const cancelled = useRef(false);
   const [lanes, setLanes] = useState(1);
   const result = useRef<OcrResult | null>(null);
+  const [made, setMade] = useState<string | null>(null); // name of the finished OCR result, offered in the translate tab
 
   const update = (n: number, patch: Partial<Page>) =>
     setPages((ps) => ps.map((p) => (p.n === n ? { ...p, ...patch } : p)));
@@ -52,6 +52,7 @@ export function Tools({ initialTab }: { initialTab: ToolTab }) {
     setRunning(true);
     setError("");
     setPages([]);
+    setMade(null);
     setFile({ name: f.name, size: f.size });
     cancelled.current = false;
     // eslint-disable-next-line react-hooks/purity -- runs in an event handler, not during render
@@ -74,6 +75,7 @@ export function Tools({ initialTab }: { initialTab: ToolTab }) {
         onProgress: (n, progress) => setPages((ps) => ps.map((x) => (x.n === n && x.status === "ocr" ? { ...x, progress } : x))),
       });
       setPhase(cancelled.current ? "중단됨" : "완료");
+      setMade(result.current.name);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setPages((ps) => ps.map((p) => (p.status === "render" || p.status === "ocr" ? { ...p, status: "error" } : p)));
@@ -102,6 +104,7 @@ export function Tools({ initialTab }: { initialTab: ToolTab }) {
   /** Hands the OCR result to the translator as an EPUB job. */
   async function toTranslator() {
     if (!result.current) return;
+    if (job && !confirm("EPUB 번역 탭에 열려 있는 책을 닫고 이 결과로 바꿀까요? 그 책의 번역은 사라집니다.")) return;
     setJob(await jobFromOcr(result.current));
     setTab("translate");
   }
@@ -159,14 +162,6 @@ export function Tools({ initialTab }: { initialTab: ToolTab }) {
         {TOOLS.find((t) => t.tab === tab)!.desc} 파일은 서버로 올라가지 않고 이 브라우저 안에서 처리됩니다.
       </p>
 
-      <div role="tabpanel" id="panel-routine" aria-labelledby="tab-routine" hidden={tab !== "routine"}>
-        <Routine
-          onReview={(j) => {
-            setJob(j);
-            setTab("translate");
-          }}
-        />
-      </div>
 
 
       <div role="tabpanel" id="panel-ocr" aria-labelledby="tab-ocr" hidden={tab !== "ocr"}>
@@ -311,7 +306,7 @@ export function Tools({ initialTab }: { initialTab: ToolTab }) {
                 {copied ? "복사됨" : "복사"}
               </button>
               <button onClick={toTranslator} disabled={running} className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm hover:bg-zinc-50 disabled:opacity-40 dark:border-zinc-700 dark:hover:bg-zinc-800">
-                번역
+                EPUB 번역으로 이어가기
               </button>
               {(["pdf", "epub"] as const).map((k) => (
                 <button
@@ -344,7 +339,7 @@ export function Tools({ initialTab }: { initialTab: ToolTab }) {
       </div>
 
       <div role="tabpanel" id="panel-translate" aria-labelledby="tab-translate" hidden={tab !== "translate"}>
-        <Translator job={job} setJob={setJob} />
+        <Translator job={job} setJob={setJob} made={made} onUseMade={toTranslator} />
       </div>
     </main>
   );
