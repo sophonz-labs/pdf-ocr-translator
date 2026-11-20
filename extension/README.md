@@ -8,7 +8,7 @@ bun run build:extension   # → extension/dist and extension/pdf-ocr-extension-<
 
 The version comes from `package.json`; the Web Store rejects an upload whose version is not higher than the last one.
 
-Built with Vite rather than Next: Next's static export puts inline scripts in the HTML, which extension pages' CSP blocks. `next/link` is swapped for `link-shim.tsx` (opens site pages on the web). The manifest allows `'wasm-unsafe-eval'` for tesseract and pdf.js WebAssembly.
+Built with Vite rather than Next: Next's static export puts inline scripts in the HTML, which extension pages' CSP blocks. `next/link` is swapped for `link-shim.tsx` (opens site pages on the web). The manifest allows `'wasm-unsafe-eval'` for tesseract and pdf.js WebAssembly. There are no host permissions on purpose: they put the item into in-depth review, and the translation endpoint already allows extension origins through CORS.
 
 ## Try it locally
 
@@ -31,7 +31,6 @@ Built with Vite rather than Next: Next's static export puts inline scripts in th
 4. **Privacy practices**
    - Single purpose: "Recognize text in image-only PDFs, make searchable PDFs and EPUBs, and translate them."
    - `sidePanel` justification: "Opens the tools in the side panel when the toolbar icon is clicked."
-   - Host permission `translate-pa.googleapis.com` justification: "Sends paragraph text to Google Translate, only when the user starts a translation."
    - Remote code: No. (All scripts and wasm are in the package.)
    - Data usage: tick "Website content" only (the paragraph text sent for translation); certify the three statements (no selling, no unrelated use, no credit-worthiness use).
    - Privacy policy URL: https://ocr.sophonz.com/en/privacy/

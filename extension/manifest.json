@@ -28,9 +28,6 @@
   "permissions": [
     "sidePanel"
   ],
-  "host_permissions": [
-    "https://translate-pa.googleapis.com/*"
-  ],
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
   }

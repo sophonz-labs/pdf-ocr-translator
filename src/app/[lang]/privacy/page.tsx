@@ -32,8 +32,7 @@ const BODY: Record<Lang, ReactNode> = {
       </p>
       <h2>Extension permissions</h2>
       <ul>
-        <li>sidePanel: opens the tools in the side panel when you click the toolbar icon.</li>
-        <li>Access to translate-pa.googleapis.com: used only for the translation feature above.</li>
+        <li>sidePanel: opens the tools in the side panel when you click the toolbar icon. This is the only permission it asks for.</li>
       </ul>
       <p>The extension does not read other websites&rsquo; content, your browsing history, or tab information.</p>
       <h2>Retention</h2>
@@ -58,8 +57,7 @@ const BODY: Record<Lang, ReactNode> = {
       </p>
       <h2>확장 프로그램 권한</h2>
       <ul>
-        <li>sidePanel: 툴바 아이콘을 누르면 사이드 패널에 도구를 엽니다.</li>
-        <li>translate-pa.googleapis.com 접근: 위의 번역 기능에만 씁니다.</li>
+        <li>sidePanel: 툴바 아이콘을 누르면 사이드 패널에 도구를 엽니다. 요청하는 권한은 이것 하나입니다.</li>
       </ul>
       <p>다른 웹사이트의 내용, 방문 기록, 탭 정보는 읽지 않습니다.</p>
       <h2>보관</h2>
