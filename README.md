@@ -14,9 +14,9 @@ PDF OCR that runs entirely in the browser. Files never leave the page.
 ## Run
 
 ```sh
-pnpm install   # postinstall copies worker/wasm files into public/vendor
-pnpm dev
-pnpm test      # layout/EPUB/translation unit tests
+bun install    # postinstall copies worker/wasm files into public/vendor
+bun dev
+bun run test   # layout/EPUB/translation unit tests
 ```
 
 ## Adding a language
