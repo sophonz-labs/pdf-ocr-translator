@@ -16,3 +16,5 @@ assert.ok(!en.includes("국립국어원"), "non-Korean target has no Korean-spec
 assert.ok(en.includes("already holds only the translation"));
 
 console.log("agent-prompt: ok");
+assert.ok(ko.includes("KoPub바탕 Medium") && ko.includes("--change-justification justify"), "fixed fonts and justified PDF");
+assert.ok(en.includes("Noto Serif JP") && !en.includes("KoPub"), "non-Korean target gets a Noto Serif for its script");

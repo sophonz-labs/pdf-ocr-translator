@@ -64,8 +64,8 @@ ${input}
 
 산출물은 셋이다.
 
-- 교정한 대역 EPUB(원문 문단 뒤에 번역 문단)
-- ${T}만 남긴 EPUB
+- 교정한 대역 EPUB과 PDF(원문 문단 뒤에 번역 문단)
+- ${T}만 남긴 EPUB과 PDF
 - 용어집 \`glossary.md\`
 
 원칙:
@@ -131,10 +131,29 @@ ${
 
 ### 7. 조판
 
-- ${T} 문자를 지원하는 글꼴을 EPUB에 넣고, 쓰인 글자만 남기도록 서브셋한다. 원문 문자용 글꼴과 짝을 맞춘다.
-- 본문, 강조, 제목의 굵기를 구분하고 문단 간격을 정한다.
-- 따옴표와 문장 부호를 ${T} 관례에 맞춘다(원문은 바꾸지 않는다).
-- PDF가 필요하면 EPUB에서 변환하고 양쪽 정렬로 맞춘다.
+글꼴과 PDF 설정은 아래로 정해져 있다. 임의로 바꾸지 않는다.
+
+- 글꼴: 라틴 문자는 Noto Serif, ${p.target === "ko" ? "한글은 KoPub바탕" : `${T} 문자는 그 문자를 지원하는 Noto Serif 계열(예: Noto Serif JP, Noto Serif SC)`}을 쓴다. 파일을 EPUB에 넣고, 책에 쓰인 글자만 남기도록 \`pyftsubset\`으로 서브셋한다.
+
+| 쓰임 | weight | 라틴 문자 | ${p.target === "ko" ? "한글" : T} |
+|---|---|---|---|
+| 본문 | normal | Noto Serif Light | ${p.target === "ko" ? "KoPub바탕 Light" : "Light 또는 Regular"} |
+| 본문 속 굵게(\`b\`, \`strong\`) | 500 | Noto Serif Regular | ${p.target === "ko" ? "KoPub바탕 Medium" : "Medium"} |
+| 제목 | bold | Noto Serif Bold | ${p.target === "ko" ? "KoPub바탕 Bold" : "Bold"} |
+
+- 이탤릭은 Noto Serif Light Italic / Italic / Bold Italic을 같은 weight에 잇는다.
+- 기존 스타일시트 끝에 \`/* embfonts */\` 표시를 두고 아래 규칙을 붙인다. 다시 돌릴 때는 표시 아래를 지우고 새로 붙인다. 문단 전체가 \`<b>\`/\`<strong>\` 하나인 문단은 제목으로 보고 \`emb-hd\` 클래스를 단다.
+
+\`\`\`css
+p{margin-top:0.45em !important;}
+b,strong{font-weight:500 !important;}
+h1,h2,h3,h4,h5,h6,h1 *,h2 *,h3 *,h4 *,h5 *,h6 *,.emb-hd{font-weight:bold !important;}
+body,p,div,span,a,em,i,strong,b,h1,h2,h3,h4,h5,h6,td,th,li,blockquote,sup,sub,small{font-family:"Noto Serif","${p.target === "ko" ? "KoPub Batang" : "<번역 글꼴>"}",serif !important;}
+\`\`\`
+
+- 따옴표: 번역 텍스트의 곧은 따옴표를 둥근 따옴표(“ ” ‘ ’)로 바꾼다. 원문은 바꾸지 않는다.
+- PDF: calibre로 만들고 양쪽 정렬한다. \`ebook-convert 책.epub 책.pdf --change-justification justify\`
+- 대역판과 ${T}만 판 모두 EPUB과 PDF를 만든다.
 
 ### 8. 최종 확인
 
@@ -194,8 +213,8 @@ ${input}
 
 Three deliverables:
 
-- a proofread bilingual EPUB (each source paragraph followed by its translation)
-- a ${T}-only EPUB
+- a proofread bilingual EPUB and PDF (each source paragraph followed by its translation)
+- a ${T}-only EPUB and PDF
 - a glossary, \`glossary.md\`
 
 Principles:
@@ -261,10 +280,29 @@ ${
 
 ### 7. Typesetting
 
-- Embed fonts that cover ${T} and subset them to the characters used, paired with a matching font for the source script.
-- Distinguish weights for body, emphasis and headings, and set paragraph spacing.
-- Make quotation marks and punctuation follow ${T} conventions (leave the source text alone).
-- If a PDF is needed, convert from the EPUB with justified text.
+Fonts and PDF settings are fixed as below. Don't substitute others.
+
+- Fonts: Noto Serif for Latin script, ${p.target === "ko" ? "KoPub Batang for Hangul" : `and for ${T} script the Noto Serif family that covers it (e.g. Noto Serif JP, Noto Serif SC)`}. Embed the files in the EPUB, subset with \`pyftsubset\` to the characters the book uses.
+
+| Use | weight | Latin | ${p.target === "ko" ? "Hangul" : T} |
+|---|---|---|---|
+| Body | normal | Noto Serif Light | ${p.target === "ko" ? "KoPub Batang Light" : "Light or Regular"} |
+| Bold in body (\`b\`, \`strong\`) | 500 | Noto Serif Regular | ${p.target === "ko" ? "KoPub Batang Medium" : "Medium"} |
+| Headings | bold | Noto Serif Bold | ${p.target === "ko" ? "KoPub Batang Bold" : "Bold"} |
+
+- Italics: Noto Serif Light Italic / Italic / Bold Italic at the same weights.
+- Append the rules below to the end of the existing stylesheet after a \`/* embfonts */\` marker; on a rerun, delete everything below the marker first. A paragraph that is a single \`<b>\`/\`<strong>\` counts as a heading and gets the \`emb-hd\` class.
+
+\`\`\`css
+p{margin-top:0.45em !important;}
+b,strong{font-weight:500 !important;}
+h1,h2,h3,h4,h5,h6,h1 *,h2 *,h3 *,h4 *,h5 *,h6 *,.emb-hd{font-weight:bold !important;}
+body,p,div,span,a,em,i,strong,b,h1,h2,h3,h4,h5,h6,td,th,li,blockquote,sup,sub,small{font-family:"Noto Serif","${p.target === "ko" ? "KoPub Batang" : "<translation font>"}",serif !important;}
+\`\`\`
+
+- Quotes: turn straight quotes in the translation into curly ones (“ ” ‘ ’). Leave the source text alone.
+- PDF: make it with calibre, justified: \`ebook-convert book.epub book.pdf --change-justification justify\`
+- Make an EPUB and a PDF of both the bilingual and the ${T}-only editions.
 
 ### 8. Final check
 
