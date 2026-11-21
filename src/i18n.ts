@@ -158,6 +158,10 @@ const en = {
     agentTitle: "Finish it with an AI agent",
     agentBody: "Give this prompt to an AI agent (Claude Code, Codex and the like) together with the EPUB you just downloaded. It proofreads the translation and makes the finished bilingual and translation-only books.",
     copyPrompt: "Copy prompt",
+    openClaude: "Open in Claude app",
+    showPrompt: "Show prompt",
+    hidePrompt: "Hide prompt",
+    openClaudeHint: "Opens Claude Code in the Claude desktop app with this prompt filled in (it is also copied). Drag in the downloaded EPUB, then send.",
     copied: "Copied",
   },
 };
@@ -295,6 +299,10 @@ const ko: Messages = {
     agentTitle: "AI 에이전트로 마무리하기",
     agentBody: "방금 내려받은 EPUB과 함께 이 프롬프트를 AI 에이전트(Claude Code, Codex 등)에게 주세요. 번역을 교정하고 대역본과 번역만 남긴 완성본을 만듭니다.",
     copyPrompt: "프롬프트 복사",
+    openClaude: "Claude 앱에서 열기",
+    showPrompt: "프롬프트 펼쳐보기",
+    hidePrompt: "접기",
+    openClaudeHint: "Claude 데스크톱 앱의 Claude Code가 이 프롬프트를 채운 채로 열립니다(클립보드에도 복사됩니다). 내려받은 EPUB을 끌어다 놓고 보내세요.",
     copied: "복사됨",
   },
 };
