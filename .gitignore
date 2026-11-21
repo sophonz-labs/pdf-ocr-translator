@@ -51,3 +51,6 @@ next-env.d.ts
 /extension/*.zip
 
 __pycache__/
+
+# service account keys
+*-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f].json

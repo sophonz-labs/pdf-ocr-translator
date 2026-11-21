@@ -1,0 +1,73 @@
+name: chrome-web-store
+
+# Push a tag matching package.json's version (e.g. v0.1.6) to build the extension, upload it and submit it for review.
+# The store listing (description, screenshots) is still edited in the Developer Dashboard.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chrome-web-store
+  cancel-in-progress: false
+
+env:
+  PUBLISHER: b5ac75c8-9aff-428f-8044-6bcf32d155c0
+  ITEM: ekmifaliobndkahdekofgekknfbhojfn
+
+jobs:
+  publish:
+    # GitHub-hosted on purpose: this repo is public, and self-hosted runners must not run code from forks.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+      - run: bun install --frozen-lockfile
+      - run: bun run test
+      - name: version matches the tag
+        id: v
+        run: |
+          v=$(node -p 'require("./package.json").version')
+          if [ "$GITHUB_REF_TYPE" = tag ] && [ "$GITHUB_REF_NAME" != "v$v" ]; then
+            echo "tag $GITHUB_REF_NAME but package.json is $v"; exit 1
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+      - run: bun run build:extension
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.CWS_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/chromewebstore
+      - name: upload
+        env:
+          TOKEN: ${{ steps.auth.outputs.access_token }}
+          ZIP: extension/pdf-ocr-extension-${{ steps.v.outputs.version }}.zip
+        run: |
+          api=https://chromewebstore.googleapis.com
+          item=publishers/$PUBLISHER/items/$ITEM
+          curl -sS --fail-with-body -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/zip" \
+            --data-binary @"$ZIP" "$api/upload/v2/$item:upload?uploadType=media" | tee upload.json
+          state=$(jq -r .uploadState upload.json)
+          # Large packages are processed asynchronously; poll until done.
+          for i in $(seq 1 30); do
+            case "$state" in *IN_PROGRESS) ;; *) break ;; esac
+            sleep 10
+            state=$(curl -sS --fail-with-body -H "Authorization: Bearer $TOKEN" "$api/v2/$item:fetchStatus" | tee status.json | jq -r .lastAsyncUploadState)
+          done
+          echo "upload: $state"
+          [ "$state" = SUCCEEDED ]
+      - name: submit for review
+        env:
+          TOKEN: ${{ steps.auth.outputs.access_token }}
+        run: |
+          curl -sS --fail-with-body -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{}' \
+            "https://chromewebstore.googleapis.com/v2/publishers/$PUBLISHER/items/$ITEM:publish"

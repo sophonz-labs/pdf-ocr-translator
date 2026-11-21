@@ -36,7 +36,7 @@ Built with Vite rather than Next: Next's static export puts inline scripts in th
    - Privacy policy URL: https://ocr.sophonz.com/en/privacy/
 5. **Distribution**: Public, all regions (or Unlisted for a soft launch).
 6. "Submit for review". Review usually takes a few days. After approval, set the repository variable `CWS_URL` (Settings → Secrets and variables → Actions → Variables) to the listing URL and re-run the `pages` workflow; the landing page's "Chrome에 추가" button turns on. (Done: the listing is live and `CWS_URL` is set.)
-7. **Updates**: bump `version` in package.json, `bun run build:extension`, then "Package" → "Upload new package" with the new zip and submit for review.
+7. **Updates**: bump `version` in package.json, commit, and push a tag `v<version>`. `.github/workflows/chrome-web-store.yml` builds the zip, uploads it and submits it for review, using the service account `chrome-webstore-publish@sophonz-labs.iam.gserviceaccount.com` (key in the repo secret `CWS_SERVICE_ACCOUNT`, added under Account in the Developer Dashboard). Listing text and screenshots are still edited in the dashboard.
 
 ### Listing description
 
