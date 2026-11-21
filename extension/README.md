@@ -35,7 +35,8 @@ Built with Vite rather than Next: Next's static export puts inline scripts in th
    - Data usage: tick "Website content" only (the paragraph text sent for translation); certify the three statements (no selling, no unrelated use, no credit-worthiness use).
    - Privacy policy URL: https://ocr.sophonz.com/en/privacy/
 5. **Distribution**: Public, all regions (or Unlisted for a soft launch).
-6. "Submit for review". Review usually takes a few days. After approval, set the repository variable `CWS_URL` (Settings → Secrets and variables → Actions → Variables) to the listing URL and re-run the `pages` workflow; the landing page's "Chrome에 추가" button turns on.
+6. "Submit for review". Review usually takes a few days. After approval, set the repository variable `CWS_URL` (Settings → Secrets and variables → Actions → Variables) to the listing URL and re-run the `pages` workflow; the landing page's "Chrome에 추가" button turns on. (Done: the listing is live and `CWS_URL` is set.)
+7. **Updates**: bump `version` in package.json, `bun run build:extension`, then "Package" → "Upload new package" with the new zip and submit for review.
 
 ### Listing description
 
@@ -49,6 +50,7 @@ Recognize the text in image-only PDFs (scans and the like), then make a searchab
 • Paragraph-based EPUB: text rejoined by paragraph, not by line, without running heads or page numbers.
 • Translation: 243 languages. Review and edit each paragraph, then pack the original and the translation into one EPUB.
 • EPUBs you already have can be translated too.
+• Finish with an AI agent: after building the EPUB, copy a proofreading prompt or open it in the Claude app. With the Claude Code plugin, the agent proofreads the translation and makes bilingual and translation-only EPUBs and PDFs.
 
 Everything runs in your browser. Files are never uploaded; only paragraph text is sent to Google Translate, and only when you start a translation.
 
@@ -66,6 +68,7 @@ Korean:
 • 문단 단위 EPUB: 줄바꿈이 아니라 문단으로 다시 잇고, 머리말과 쪽 번호를 걷어 냅니다.
 • 번역: 243개 언어. 문단마다 검토하고 고친 뒤 원문과 번역을 함께 담은 EPUB으로 묶습니다.
 • 가지고 있는 EPUB도 바로 번역할 수 있습니다.
+• AI 에이전트로 마무리: EPUB을 만든 뒤 교정 프롬프트를 복사하거나 Claude 앱에서 바로 엽니다. Claude Code 플러그인을 쓰면 에이전트가 번역을 교정하고 대역판과 번역만 남긴 판을 EPUB·PDF로 만듭니다.
 
 모두 브라우저에서 처리합니다. 파일은 서버로 올라가지 않으며, 번역을 시작했을 때만 문단 텍스트가 Google 번역으로 전송됩니다.
 

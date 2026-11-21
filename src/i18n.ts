@@ -74,6 +74,14 @@ const en = {
         body: "Translates paragraph by paragraph into 243 languages. Edit any paragraph or retranslate a selection, then pack it into an EPUB.",
       },
     ],
+    plugin: {
+      title: "Finish the book with an AI agent",
+      body: "Machine translation is a first draft. After you build the EPUB, the app shows a prompt for an AI agent with a copy button and an \"Open in Claude app\" button. With the Claude Code plugin, the agent proofreads the translation against a glossary and makes a bilingual edition and a translation-only edition as EPUB and PDF, with fonts embedded and text justified.",
+      install: "Install the plugin in Claude Code",
+      run: "Then start it with",
+      needs: "Needs Python, calibre and, for Korean, the KoPub Batang font. The plugin checks for them and says what is missing.",
+      source: "Plugin source",
+    },
   },
   footer: {
     blurb: "PDF OCR, searchable PDFs, EPUB conversion and translation. Everything runs in your browser.",
@@ -215,6 +223,14 @@ const ko: Messages = {
       { title: "검색 가능한 PDF", body: "원본 위에 보이지 않는 텍스트 층을 얹습니다. 보이는 모습은 그대로이고, 찾기와 복사를 할 수 있습니다." },
       { title: "검토하며 번역", body: "243개 언어로 문단 단위 번역을 하고, 문단마다 고치거나 골라서 다시 번역한 뒤 EPUB으로 묶습니다." },
     ],
+    plugin: {
+      title: "AI 에이전트로 책을 마무리하기",
+      body: "기계 번역은 초벌입니다. EPUB을 만들면 AI 에이전트에게 줄 프롬프트가 복사 버튼, 'Claude 앱에서 열기' 버튼과 함께 나타납니다. Claude Code 플러그인을 쓰면 에이전트가 용어집을 기준으로 번역을 교정하고, 대역판과 번역만 남긴 판을 EPUB과 PDF로 만듭니다. 글꼴이 들어가고 본문은 양쪽 정렬됩니다.",
+      install: "Claude Code에서 플러그인을 설치하고",
+      run: "다음 명령으로 시작합니다",
+      needs: "Python, calibre, 그리고 한국어라면 KoPub바탕 글꼴이 필요합니다. 플러그인이 확인하고 빠진 것을 알려 줍니다.",
+      source: "플러그인 소스",
+    },
   },
   footer: {
     blurb: "PDF OCR, 검색 가능한 PDF, EPUB 변환과 번역. 모두 브라우저에서 처리합니다.",
