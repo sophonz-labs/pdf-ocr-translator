@@ -25,7 +25,8 @@ export async function translateText(text: string, target: string, f: Fetcher = f
     try {
       const r = await f(`${ENDPOINT}?${q}`, { signal });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      return ((await r.json()) as { translation: string }).translation;
+      // Google sometimes answers with HTML for what looks like markup (a footnote number becomes <sup>1</sup>); we write plain text.
+      return ((await r.json()) as { translation: string }).translation.replace(/<\/?(sup|sub|b|i|em|strong|u|span)\b[^>]*>/gi, "");
     } catch (e) {
       if (signal?.aborted || attempt >= 2) throw e;
       await new Promise((ok) => setTimeout(ok, 1000 * 2 ** attempt));

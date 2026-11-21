@@ -1,6 +1,6 @@
 // Run: pnpm test
 import assert from "node:assert/strict";
-import { applyTranslations, blockTexts, translateTexts } from "./translate.ts";
+import { applyTranslations, blockTexts, translateText, translateTexts } from "./translate.ts";
 import type { Block } from "./layout.ts";
 
 const blocks: Block[] = [
@@ -54,5 +54,9 @@ assert.equal(both[1].runs, blocks[1].runs);
 const rep = applyTranslations(blocks, ["하나", "평범", "모두 굵게"], "replace");
 assert.deepEqual(rep[1].runs, [{ text: "평범", bold: undefined, italic: undefined }]);
 assert.deepEqual(rep[2].runs, [{ text: "모두 굵게", bold: true, italic: undefined }]);
+
+// Google returns a footnote number as <sup>1</sup>; the app writes plain text, so tags are dropped.
+const html = async () => new Response(JSON.stringify({ translation: "형성됩니다.<sup>1</sup> <b>a</b> 1 < 2" }));
+assert.equal(await translateText("x", "ko", html), "형성됩니다.1 a 1 < 2");
 
 console.log("translate: ok");
