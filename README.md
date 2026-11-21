@@ -1,9 +1,21 @@
 # PDF OCR Translator
 
+[![pages](https://github.com/sophonz-labs/pdf-ocr-translator/actions/workflows/pages.yml/badge.svg)](https://github.com/sophonz-labs/pdf-ocr-translator/actions/workflows/pages.yml)
+[![chrome-web-store](https://github.com/sophonz-labs/pdf-ocr-translator/actions/workflows/chrome-web-store.yml/badge.svg)](https://github.com/sophonz-labs/pdf-ocr-translator/actions/workflows/chrome-web-store.yml)
+[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/ekmifaliobndkahdekofgekknfbhojfn?label=Chrome%20Web%20Store)](https://chromewebstore.google.com/detail/ekmifaliobndkahdekofgekknfbhojfn)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
 Turn image-only PDFs (scans, photographed pages) into searchable PDFs and paragraph-based EPUBs, then translate them. Everything runs in the browser; files never leave the device.
 
 - Web: https://ocr.sophonz.com
-- Chrome extension: the same tools in Chrome's side panel ([extension/README.md](extension/README.md))
+- Chrome extension: [Chrome Web Store](https://chromewebstore.google.com/detail/ekmifaliobndkahdekofgekknfbhojfn), the same tools in Chrome's side panel ([extension/README.md](extension/README.md))
+
+![Recognize text in image-only PDFs](extension/store/en/screenshot-1.png)
+
+| | |
+|---|---|
+| ![Translate by paragraph](extension/store/en/screenshot-2.png) | ![Searchable PDF and EPUB](extension/store/en/screenshot-3.png) |
+| ![Finish with an AI agent](extension/store/en/screenshot-4.png) | |
 
 ## How it works
 

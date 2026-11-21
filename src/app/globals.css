@@ -24,3 +24,19 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
 }
+
+/* Reserve the scrollbar's space so pages don't shift sideways between short and long pages. */
+html {
+  scrollbar-gutter: stable;
+}
+
+/* Before hydration, ?tab=translate (set by the inline script in the layout) shows the translate panel.
+   In @layer base: Tailwind's [hidden] { display: none !important } lives there, and a layered !important beats an unlayered one. */
+@layer base {
+  html[data-tab="translate"] #panel-ocr {
+    display: none !important;
+  }
+  html[data-tab="translate"] #panel-translate[hidden] {
+    display: block !important;
+  }
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { TOOLS, type ToolTab } from "@/components/site";
 import { I18n } from "@/i18n-context";
@@ -28,5 +28,6 @@ export function ToolsRoute({ lang: initial }: { lang: Lang }) {
 
 function WithTab({ render }: { render: (tab: ToolTab) => React.ReactNode }) {
   const tab = useSearchParams().get("tab");
+  useEffect(() => void delete document.documentElement.dataset.tab, []); // React shows the right panel from here on
   return render(TOOLS.find((t) => t === tab) ?? "ocr");
 }

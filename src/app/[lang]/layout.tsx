@@ -21,8 +21,12 @@ export default async function RootLayout({ children, params }: LayoutProps<"/[la
   const { lang } = await params;
   if (!isLang(lang)) notFound();
   return (
-    <html lang={lang} className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">
+    <html lang={lang} suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+      <head>
+        {/* The static tools page is the OCR tab; show ?tab=translate's panel before React reads the URL (see globals.css). */}
+        <script dangerouslySetInnerHTML={{ __html: `if(/[?&]tab=translate\\b/.test(location.search))document.documentElement.dataset.tab="translate"` }} />
+      </head>
+      <body className="@container min-h-full flex flex-col">
         {children}
         <SiteFooter lang={lang} />
       </body>
