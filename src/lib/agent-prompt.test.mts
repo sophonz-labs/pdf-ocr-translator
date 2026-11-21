@@ -18,3 +18,4 @@ assert.ok(en.includes("already holds only the translation"));
 console.log("agent-prompt: ok");
 assert.ok(ko.includes("KoPub바탕 Medium") && ko.includes("--change-justification justify"), "fixed fonts and justified PDF");
 assert.ok(en.includes("Noto Serif JP") && !en.includes("KoPub"), "non-Korean target gets a Noto Serif for its script");
+assert.ok(ko.includes("--marketplace sophonz-labs/pdf-ocr-translator") && en.includes("--lang ja"), "points to the plugin with the target language");

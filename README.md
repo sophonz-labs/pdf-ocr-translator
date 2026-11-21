@@ -31,10 +31,22 @@ bun run build:extension
 
 Pushing to `main` builds the static site and publishes it to the `gh-pages` branch (GitHub Pages, `ocr.sophonz.com`).
 
+## Claude Code plugin: proofread the translation
+
+After "Build EPUB", the app shows a prompt for an AI agent that finishes the book. In Claude Code, the `epub-proofread` plugin in this repository does the mechanical parts with scripts:
+
+```
+/plugin install epub-proofread --marketplace sophonz-labs/pdf-ocr-translator
+```
+
+Then `/epub-proofread:proofread`. It takes a bilingual EPUB from this app (or from calibre Ebook Translator) and makes a glossary, a proofread bilingual EPUB and PDF, and a translation-only EPUB and PDF, with Noto Serif and KoPub Batang embedded and justified PDF text.
+
+Needs Python 3.9+, `pip install fonttools pymupdf`, and [calibre](https://calibre-ebook.com). For Korean, install KoPub Batang (Light, Medium, Bold) from the Korean Publishers Society (kopus.org); it isn't bundled. `scripts/doctor.py` checks all of this. The plugin lives in `plugins/epub-proofread/`; the marketplace file is `.claude-plugin/marketplace.json`.
+
 ## Adding an OCR language
 
 Drop `<lang>.traineddata` from [tessdata_fast](https://github.com/tesseract-ocr/tessdata_fast) into `public/models/`, add it to `OCR_LANGS` in `src/app/tools.tsx` (combine with `+`, e.g. `jpn+eng`), and add labels under `ocr.langs` in `src/i18n.ts`.
 
 ## License
 
-MIT. Bundled third-party files keep their own licenses: tessdata models (Apache-2.0), NanumGothic (SIL OFL 1.1, `public/fonts/OFL.txt`); Geist Bold and NanumGothic Bold in `src/og/`, used only to render Open Graph images at build time (SIL OFL 1.1); tesseract.js and pdf.js files copied at install time are Apache-2.0.
+MIT. Bundled third-party files keep their own licenses: tessdata models (Apache-2.0), NanumGothic (SIL OFL 1.1, `public/fonts/OFL.txt`); Geist Bold and NanumGothic Bold in `src/og/`, used only to render Open Graph images at build time (SIL OFL 1.1); tesseract.js and pdf.js files copied at install time are Apache-2.0; Noto Serif in `plugins/epub-proofread/fonts/` (SIL OFL 1.1).

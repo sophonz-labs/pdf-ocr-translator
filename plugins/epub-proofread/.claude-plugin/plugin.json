@@ -1,0 +1,11 @@
+{
+  "name": "epub-proofread",
+  "displayName": "EPUB Proofread",
+  "version": "0.1.0",
+  "description": "Proofread a machine-translated bilingual EPUB (PDF OCR Translator or calibre Ebook Translator) and build bilingual and translation-only EPUBs and PDFs with fixed fonts and justified text",
+  "author": { "name": "sophonz labs", "url": "https://ocr.sophonz.com" },
+  "homepage": "https://ocr.sophonz.com",
+  "repository": "https://github.com/sophonz-labs/pdf-ocr-translator",
+  "license": "MIT",
+  "keywords": ["epub", "translation", "proofreading", "calibre"]
+}

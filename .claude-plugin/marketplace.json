@@ -1,0 +1,12 @@
+{
+  "name": "sophonz-labs",
+  "description": "Plugins from sophonz labs",
+  "owner": { "name": "sophonz labs", "url": "https://ocr.sophonz.com" },
+  "plugins": [
+    {
+      "name": "epub-proofread",
+      "source": "./plugins/epub-proofread",
+      "description": "Proofread a machine-translated bilingual EPUB into finished bilingual and translation-only EPUBs and PDFs"
+    }
+  ]
+}

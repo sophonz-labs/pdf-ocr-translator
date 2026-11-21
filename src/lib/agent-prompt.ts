@@ -54,6 +54,14 @@ ${p.source === "auto" ? "원문" : `${S} 원문`}과 1차 ${T} 번역이 담긴 
 - 문단 ${p.total}개 중 번역 ${p.done}개, 실패 ${p.failed}개, 사람이 고친 문단 ${p.edited}개
 - PDF OCR Translator(https://ocr.sophonz.com)에서 ${p.origin === "ocr" ? "스캔 PDF를 OCR해 만든 EPUB을" : "가지고 있던 EPUB을"} Google 번역으로 1차 번역했다. 사람이 고친 문단은 의도가 있으니 신중히 다룬다.
 
+## 도구
+
+Claude Code에서 작업한다면 epub-proofread 플러그인의 \`proofread\` 스킬(\`/epub-proofread:proofread\`)로 진행한다. 아래 작업 순서의 추출·병합·번역만 남긴 판·글꼴·PDF를 스크립트가 처리한다.
+
+- 설치돼 있지 않으면 먼저 사용자에게 설치를 제안한다. 셸에서 \`claude plugin install epub-proofread --marketplace sophonz-labs/pdf-ocr-translator\`를 실행하고, 세션에서 \`/reload-plugins\`를 입력하면 된다.
+- 스킬을 쓸 때는 \`--lang ${t}\`를 넘긴다.
+- 플러그인을 쓸 수 없는 환경이면 아래 지침을 직접 따른다.
+
 ## 입력 형식
 
 ${input}
@@ -202,6 +210,14 @@ The job: proofread an EPUB holding the ${S === "source" ? "source text" : `${S} 
 - Layout: ${both ? "translation under the original (bilingual)" : "translation only"}
 - ${p.total} paragraphs: ${p.done} translated, ${p.failed} failed, ${p.edited} edited by hand
 - Made with PDF OCR Translator (https://ocr.sophonz.com): ${p.origin === "ocr" ? "a scanned PDF was OCR'd into an EPUB and" : "an existing EPUB was"} machine-translated with Google Translate. Hand-edited paragraphs were changed on purpose; treat them with care.
+
+## Tools
+
+If you are Claude Code, use the \`proofread\` skill of the epub-proofread plugin (\`/epub-proofread:proofread\`). Its scripts handle extraction, merging, the translation-only edition, fonts and the PDF in the steps below.
+
+- If it isn't installed, offer to install it first: run \`claude plugin install epub-proofread --marketplace sophonz-labs/pdf-ocr-translator\` in a shell, then \`/reload-plugins\` in the session.
+- Pass \`--lang ${t}\` to its scripts.
+- Where the plugin can't be used, follow the instructions below directly.
 
 ## Input
 
