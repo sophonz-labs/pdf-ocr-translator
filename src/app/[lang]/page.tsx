@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AppIcon } from "@/components/brand";
 import { SiteHeader, TOOLS } from "@/components/site";
+import { PluginGuide } from "@/components/plugin-guide";
 import type { Metadata } from "next";
 import { DICT, type Lang } from "@/i18n";
 import { pageMeta } from "../og";
@@ -92,25 +93,7 @@ export default async function Landing({ params }: PageProps<"/[lang]">) {
         </div>
       </section>
 
-      <section className="mt-24 rounded-2xl border border-zinc-200 bg-white p-6 sm:p-8 dark:border-zinc-800 dark:bg-zinc-900">
-        <h2 className="text-lg font-medium">{L.plugin.title}</h2>
-        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">{L.plugin.body}</p>
-        <p className="mt-6 text-sm text-zinc-500">{L.plugin.install}</p>
-        <pre className="mt-2 overflow-x-auto rounded-lg bg-zinc-950 px-4 py-3 text-sm text-zinc-100">
-          <code>/plugin install epub-proofread --marketplace sophonz-labs/pdf-ocr-translator</code>
-        </pre>
-        <p className="mt-4 text-sm text-zinc-500">{L.plugin.run}</p>
-        <pre className="mt-2 overflow-x-auto rounded-lg bg-zinc-950 px-4 py-3 text-sm text-zinc-100">
-          <code>/epub-proofread:proofread</code>
-        </pre>
-        <p className="mt-4 text-xs leading-relaxed text-zinc-500">{L.plugin.needs}</p>
-        <a
-          href="https://github.com/sophonz-labs/pdf-ocr-translator/tree/main/plugins/epub-proofread"
-          className="mt-4 inline-block text-sm text-zinc-700 underline underline-offset-4 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white"
-        >
-          {L.plugin.source} →
-        </a>
-      </section>
+      <PluginGuide t={L.plugin} />
     </main>
   );
 }

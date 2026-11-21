@@ -24,7 +24,7 @@ Built with Vite rather than Next: Next's static export puts inline scripts in th
    - Description: "Listing description" below, English.
    - Category: Productivity (Tools).
    - Icon: taken from the zip (`icons/icon-128.png`).
-   - Screenshots (1280×800): `store/en/screenshot-1.png`, `-2`, `-3`.
+   - Screenshots (1280×800): `store/en/screenshot-1.png`, `-2`, `-3`, `-4`.
    - Small promo tile (440×280): `store/en/promo-small-440x280.png`. Marquee (1400×560, optional): `store/en/promo-marquee-1400x560.png`.
    - Homepage: https://ocr.sophonz.com
    - Add Korean under the listing's language menu: the Korean description below and the `store/ko/` images. Name and short description come from `_locales/<lang>/messages.json` in the zip.
