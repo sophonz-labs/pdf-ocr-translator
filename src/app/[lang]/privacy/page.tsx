@@ -20,7 +20,7 @@ const BODY: Record<Lang, ReactNode> = {
   en: (
     <>
       <h1>Privacy policy</h1>
-      <p className="text-zinc-500">Effective November 21, 2026 · Applies to the PDF OCR website and Chrome extension</p>
+      <p className="text-zinc-500">Effective November 23, 2026 · Applies to the PDF OCR website and Chrome extension</p>
       <h2>What we process</h2>
       <p>
         The PDF and EPUB files you choose are processed only inside your browser. Text recognition (OCR) and building searchable PDFs and EPUBs all happen on
@@ -57,7 +57,7 @@ const BODY: Record<Lang, ReactNode> = {
   ko: (
     <>
       <h1>개인정보처리방침</h1>
-      <p className="text-zinc-500">시행일 2026년 11월 21일 · 적용 대상: PDF OCR 웹사이트와 Chrome 확장 프로그램</p>
+      <p className="text-zinc-500">시행일 2026년 11월 23일 · 적용 대상: PDF OCR 웹사이트와 Chrome 확장 프로그램</p>
       <h2>처리하는 정보</h2>
       <p>
         사용자가 고른 PDF와 EPUB 파일은 브라우저 안에서만 처리합니다. 텍스트 인식(OCR), 검색 가능한 PDF와 EPUB 만들기는 모두 이 기기에서 일어나며, 파일과 인식한
