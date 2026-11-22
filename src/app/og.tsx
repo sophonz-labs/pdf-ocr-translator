@@ -18,6 +18,17 @@ function text(lang: Lang, page: PageKey) {
   return { title: m.privacy, description: m.privacyDesc, heading: m.ogPrivacy, sub: m.privacyDesc };
 }
 
+/** Site-wide fields for every root layout: base URL, app name, and search-engine ownership tags (build env, set as repo variables). */
+export function siteMeta(): Metadata {
+  const v = (k: string) => process.env[k] || undefined;
+  return {
+    metadataBase: new URL(SITE),
+    applicationName: "PDF OCR",
+    publisher: "sophonz labs (INOBS Inc.)",
+    verification: { google: v("NEXT_PUBLIC_GSC_VERIFICATION"), other: v("NEXT_PUBLIC_NAVER_VERIFICATION") ? { "naver-site-verification": v("NEXT_PUBLIC_NAVER_VERIFICATION")! } : undefined },
+  };
+}
+
 /** Title, description, canonical/alternate URLs, Open Graph and Twitter fields for one page. The image itself comes from the route's opengraph-image. */
 export function pageMeta(lang: Lang, page: PageKey): Metadata {
   const { title, description } = text(lang, page);
@@ -25,7 +36,7 @@ export function pageMeta(lang: Lang, page: PageKey): Metadata {
   return {
     title,
     description,
-    alternates: { canonical: url, languages: Object.fromEntries(LOCALES.map((l) => [l, `/${l}${PATH[page]}`])) },
+    alternates: { canonical: url, languages: { ...Object.fromEntries(LOCALES.map((l) => [l, `/${l}${PATH[page]}`])), "x-default": `/en${PATH[page]}` } },
     openGraph: {
       title,
       description,

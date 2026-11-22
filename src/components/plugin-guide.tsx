@@ -33,7 +33,7 @@ export function PluginGuide({ t }: { t: (typeof DICT)["en"]["landing"]["plugin"]
             role="tab"
             aria-selected={tab === id}
             onClick={() => setTab(id)}
-            className={`rounded-md px-3 py-1.5 ${tab === id ? "bg-white font-medium shadow-sm dark:bg-zinc-950" : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"}`}
+            className={`rounded-md px-3 py-1.5 ${tab === id ? "bg-white font-medium shadow-sm dark:bg-zinc-950" : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200"}`}
           >
             {label}
           </button>
@@ -51,18 +51,18 @@ export function PluginGuide({ t }: { t: (typeof DICT)["en"]["landing"]["plugin"]
                 </div>
               </li>
             ))}
-            <li className="text-xs text-zinc-500">{t.appNote}</li>
+            <li className="text-xs text-zinc-600 dark:text-zinc-400">{t.appNote}</li>
           </ol>
         ) : (
           <>
-            <p className="text-sm text-zinc-500">{t.install}</p>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">{t.install}</p>
             <Cmd>{`/plugin install epub-proofread --marketplace ${MARKET}`}</Cmd>
-            <p className="mt-4 text-sm text-zinc-500">{t.run}</p>
+            <p className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">{t.run}</p>
             <Cmd>/epub-proofread:proofread</Cmd>
           </>
         )}
       </div>
-      <p className="mt-5 text-xs leading-relaxed text-zinc-500">{t.needs}</p>
+      <p className="mt-5 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">{t.needs}</p>
       <a
         href={SOURCE}
         className="mt-4 inline-flex items-center gap-2 text-sm text-zinc-700 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white"

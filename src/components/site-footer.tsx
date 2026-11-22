@@ -37,12 +37,12 @@ export function SiteFooter({ lang }: { lang: Lang }) {
       <div className="mx-auto grid max-w-5xl gap-12 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
         <div className="flex flex-col gap-4">
           <SophonzLabs height={15} className="self-start text-zinc-900 dark:text-zinc-100" />
-          <p className="max-w-xs leading-6 text-zinc-500">{DICT[lang].footer.blurb}</p>
+          <p className="max-w-xs leading-6 text-zinc-600 dark:text-zinc-400">{DICT[lang].footer.blurb}</p>
         </div>
         <nav className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3">
           {columns(lang).map((col) => (
             <div key={col.title} className="min-w-0">
-              <h2 className="mb-4 text-[13px] font-normal text-zinc-500">{col.title}</h2>
+              <h2 className="mb-4 text-[13px] font-normal text-zinc-600 dark:text-zinc-400">{col.title}</h2>
               <ul className="flex flex-col gap-3">
                 {col.items.map(({ label, href }) => {
                   const cls = "whitespace-nowrap text-zinc-800 transition-colors hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white";
@@ -65,7 +65,7 @@ export function SiteFooter({ lang }: { lang: Lang }) {
           ))}
         </nav>
       </div>
-      <div className="mx-auto mt-12 max-w-5xl border-t border-zinc-200 pt-6 text-[12px] text-zinc-500 dark:border-zinc-800">
+      <div className="mx-auto mt-12 max-w-5xl border-t border-zinc-200 pt-6 text-[12px] text-zinc-600 dark:text-zinc-400 dark:border-zinc-800">
         &copy; {new Date().getFullYear()} INOBS Inc.
       </div>
     </footer>

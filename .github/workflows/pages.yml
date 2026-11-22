@@ -30,6 +30,10 @@ jobs:
       - run: bun run build
         env:
           NEXT_PUBLIC_CWS_URL: ${{ vars.CWS_URL }}
+          # Each is off when the variable is unset.
+          NEXT_PUBLIC_GA_ID: ${{ vars.GA_ID }}
+          NEXT_PUBLIC_GSC_VERIFICATION: ${{ vars.GSC_VERIFICATION }}
+          NEXT_PUBLIC_NAVER_VERIFICATION: ${{ vars.NAVER_VERIFICATION }}
       # Pushed to a branch rather than uploaded as a Pages artifact: the org's Actions artifact storage is full.
       - name: publish to gh-pages
         working-directory: out

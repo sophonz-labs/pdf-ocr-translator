@@ -21,7 +21,7 @@ export function LangSwitch({ lang, label, onChange }: { lang: Lang; label: strin
             if (onChange) onChange(l);
             else location.href = location.pathname.replace(/^\/(en|ko)(?=\/|$)/, `/${l}`) + location.search;
           }}
-          className={`rounded-md px-2 py-1 transition ${l === lang ? "bg-white font-medium shadow-sm dark:bg-zinc-950" : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"}`}
+          className={`rounded-md px-2 py-1 transition ${l === lang ? "bg-white font-medium shadow-sm dark:bg-zinc-950" : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200"}`}
         >
           {LANG_LABEL[l]}
         </button>

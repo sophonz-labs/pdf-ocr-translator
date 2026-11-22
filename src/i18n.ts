@@ -22,7 +22,7 @@ export function saveLang(l: Lang) {
 
 const en = {
   meta: {
-    title: "PDF OCR · sophonz labs",
+    title: "PDF OCR: Searchable PDF, EPUB and Translation in Your Browser",
     description:
       "Recognizes text in scanned and other image-based PDFs, produces searchable PDFs and EPUBs, and translates them into 243 languages. All processing takes place in the browser.",
     tools: "PDF OCR and EPUB Translation · PDF OCR",
@@ -186,7 +186,7 @@ export type Messages = typeof en;
 
 const ko: Messages = {
   meta: {
-    title: "PDF OCR · sophonz labs",
+    title: "PDF OCR: 스캔 PDF 텍스트 인식, EPUB 변환과 번역",
     description: "스캔본 등 이미지로 구성된 PDF의 텍스트를 인식하여 검색 가능한 PDF와 EPUB으로 변환하고, 243개 언어로 번역합니다. 모든 처리는 브라우저에서 이루어집니다.",
     tools: "PDF 텍스트 인식 및 EPUB 번역 · PDF OCR",
     privacy: "개인정보처리방침 · PDF OCR",

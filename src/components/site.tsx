@@ -21,7 +21,7 @@ export function SiteHeader({ lang, right, onLang }: { lang: Lang; right?: ReactN
           href="https://github.com/sophonz-labs/pdf-ocr-translator"
           aria-label="GitHub"
           title="GitHub"
-          className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-white"
+          className="rounded-md p-1.5 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-white"
         >
           <GitHubMark className="size-5" />
         </a>

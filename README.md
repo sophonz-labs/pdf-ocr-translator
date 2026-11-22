@@ -43,6 +43,17 @@ bun run build:extension
 
 Pushing to `main` builds the static site and publishes it to the `gh-pages` branch (GitHub Pages, `ocr.sophonz.com`).
 
+The site build reads these repository variables; each is off when unset:
+
+| Variable | Purpose |
+|---|---|
+| `CWS_URL` | Chrome Web Store link on the landing page |
+| `GA_ID` | Google Analytics 4 measurement ID (`G-…`); also adds the visit-statistics section to the privacy policy |
+| `GSC_VERIFICATION` | Google Search Console HTML-tag verification code |
+| `NAVER_VERIFICATION` | Naver Search Advisor verification code |
+
+Pushing a `v<version>` tag that matches `package.json` builds the extension, uploads it to the Chrome Web Store and submits it for review (secret `CWS_SERVICE_ACCOUNT`).
+
 ## Claude Code plugin: proofread the translation
 
 After "Build EPUB", the app shows a prompt for an AI agent that finishes the book. In Claude Code, the `epub-proofread` plugin in this repository does the mechanical parts with scripts:

@@ -145,7 +145,7 @@ export function Tools({ initialTab, onLang }: { initialTab: ToolTab; onLang: (l:
             className={`-mb-px shrink-0 border-b-2 px-3 py-2 text-sm transition ${
               tab === k
                 ? "border-zinc-900 font-medium text-zinc-900 dark:border-white dark:text-white"
-                : "border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+                : "border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200"
             }`}
           >
             {t.tools[k].label}
@@ -153,7 +153,7 @@ export function Tools({ initialTab, onLang }: { initialTab: ToolTab; onLang: (l:
           </button>
         ))}
       </nav>
-      <p className="mt-4 mb-8 text-sm text-zinc-500 dark:text-zinc-400">
+      <p className="mt-4 mb-8 text-sm text-zinc-600 dark:text-zinc-400">
         {t.tools[tab].desc} {T.local}
       </p>
 
@@ -194,7 +194,7 @@ export function Tools({ initialTab, onLang }: { initialTab: ToolTab; onLang: (l:
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 16V4m0 0-4 4m4-4 4 4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
         </svg>
         <p className="mt-3 text-sm font-medium">{T.drop}</p>
-        <p className="mt-1 text-xs text-zinc-500">{file ? `${file.name} · ${formatSize(file.size)}` : T.dropHint}</p>
+        <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">{file ? `${file.name} · ${formatSize(file.size)}` : T.dropHint}</p>
       </label>
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
@@ -209,7 +209,7 @@ export function Tools({ initialTab, onLang }: { initialTab: ToolTab; onLang: (l:
               className={`rounded-md px-3 py-1.5 transition ${
                 ocrLang === v
                   ? "bg-white font-medium shadow-sm dark:bg-zinc-950"
-                  : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200"
               }`}
             >
               {T.langs[v]}
@@ -228,7 +228,7 @@ export function Tools({ initialTab, onLang }: { initialTab: ToolTab; onLang: (l:
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{phase && T[phase]}</p>
-              <p className="mt-0.5 text-xs text-zinc-500 tabular-nums">
+              <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-400 tabular-nums">
                 {T.pages(finished, total)} · {T.secs((elapsed / 1000).toFixed(1))}
                 {running && lanes > 1 && ` · ${T.lanes(lanes)}`}
                 {avg > 0 && ` · ${T.perPage((avg / lanes / 1000).toFixed(2))}`}
@@ -237,7 +237,7 @@ export function Tools({ initialTab, onLang }: { initialTab: ToolTab; onLang: (l:
             </div>
             <div className="flex items-center gap-3">
               {running && (
-                <button onClick={() => (cancelled.current = true)} className="rounded-md px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-zinc-800 dark:hover:text-zinc-200">
+                <button onClick={() => (cancelled.current = true)} className="rounded-md px-2 py-1 text-xs text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-zinc-800 dark:hover:text-zinc-200">
                   {T.stop}
                 </button>
               )}
@@ -272,7 +272,7 @@ export function Tools({ initialTab, onLang }: { initialTab: ToolTab; onLang: (l:
             ))}
           </ol>
 
-          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-zinc-500">
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-zinc-600 dark:text-zinc-400">
             {(["done", "text", "ocr", "pending", "error"] as const).map((s) =>
               s === "error" && !pages.some((p) => p.status === "error") ? null : (
                 <span key={s} className="flex items-center gap-1.5">
@@ -294,7 +294,7 @@ export function Tools({ initialTab, onLang }: { initialTab: ToolTab; onLang: (l:
           <div className="flex items-center justify-between gap-3 border-b border-zinc-200 px-5 py-3 dark:border-zinc-800">
             <div>
               <h2 className="text-sm font-medium">{T.result}</h2>
-              <p className="text-xs text-zinc-500 tabular-nums">{T.chars(allText.length.toLocaleString())}</p>
+              <p className="text-xs text-zinc-600 dark:text-zinc-400 tabular-nums">{T.chars(allText.length.toLocaleString())}</p>
             </div>
             <div className="flex gap-2">
               <button onClick={copy} className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800">

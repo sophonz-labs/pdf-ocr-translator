@@ -63,7 +63,7 @@ function LangSelect({ label, value, onChange, auto, disabled }: { label: string;
     </option>
   );
   return (
-    <label className="flex items-center gap-1.5 text-xs text-zinc-500">
+    <label className="flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-400">
       {label}
       <select value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} className={`${select} max-w-48 text-zinc-900 dark:text-zinc-100`}>
         {auto && <option value="auto">{t.auto}</option>}
@@ -146,7 +146,7 @@ export function Translator({
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-blue-200 bg-blue-50/60 px-5 py-4 dark:border-blue-500/30 dark:bg-blue-500/10">
           <div className="min-w-0">
             <p className="text-sm font-medium">{t.madeTitle}</p>
-            <p className="truncate text-xs text-zinc-500">{made}</p>
+            <p className="truncate text-xs text-zinc-600 dark:text-zinc-400">{made}</p>
           </div>
           <button className={primary} onClick={onUseMade}>
             {t.useMade}
@@ -174,7 +174,7 @@ export function Translator({
         >
           {input}
           <p className="text-sm font-medium">{loading ? t.reading : t.drop}</p>
-          <p className="mt-1 text-xs text-zinc-500">{t.dropHint}</p>
+          <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">{t.dropHint}</p>
         </label>
       )}
       {error && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-400">{error}</p>}
@@ -183,7 +183,7 @@ export function Translator({
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-5 py-3 dark:border-zinc-800">
             <div className="min-w-0">
               <h2 className="truncate text-sm font-medium">{job.name}</h2>
-              <p className="text-xs text-zinc-500 tabular-nums">{t.paragraphs(job.segments.length.toLocaleString())}</p>
+              <p className="text-xs text-zinc-600 dark:text-zinc-400 tabular-nums">{t.paragraphs(job.segments.length.toLocaleString())}</p>
             </div>
             <label className={`${btn} cursor-pointer`}>
               {loading ? t.reading : t.openOther}
@@ -300,7 +300,7 @@ function Review({ job }: { job: Job }) {
         <LangSelect label={t.source} value={source} onChange={setSource} auto disabled={!!progress} />
         <span aria-hidden className="text-zinc-400">→</span>
         <LangSelect label={t.target} value={target} onChange={changeTarget} disabled={!!progress} />
-        <span className="ml-auto text-xs text-zinc-500 tabular-nums">
+        <span className="ml-auto text-xs text-zinc-600 dark:text-zinc-400 tabular-nums">
           {t.count(done, n)}
           {failed > 0 && <span className="text-red-600"> · {t.failedCount(failed)}</span>}
         </span>
@@ -314,7 +314,7 @@ function Review({ job }: { job: Job }) {
         </button>
         {progress && (
           <>
-            <span className="text-xs text-zinc-500 tabular-nums">
+            <span className="text-xs text-zinc-600 dark:text-zinc-400 tabular-nums">
               {progress[0]}/{progress[1]}
             </span>
             <button className={btn} onClick={() => abort.current?.abort()}>
@@ -336,7 +336,7 @@ function Review({ job }: { job: Job }) {
           {t.selectPage}
         </label>
         {sel.size > 0 && (
-          <button className="text-zinc-500 underline" onClick={() => setSel(new Set())}>
+          <button className="text-zinc-600 dark:text-zinc-400 underline" onClick={() => setSel(new Set())}>
             {t.clear}
           </button>
         )}
@@ -350,7 +350,7 @@ function Review({ job }: { job: Job }) {
                 setFilter(v);
                 setPage(0);
               }}
-              className={`rounded px-2 py-1 ${filter === v ? "bg-white font-medium shadow-sm dark:bg-zinc-950" : "text-zinc-500"}`}
+              className={`rounded px-2 py-1 ${filter === v ? "bg-white font-medium shadow-sm dark:bg-zinc-950" : "text-zinc-600 dark:text-zinc-400"}`}
             >
               {t.filters[v]}
             </button>
@@ -388,14 +388,14 @@ function Review({ job }: { job: Job }) {
             </div>
           </li>
         ))}
-        {!shown.length && <li className="px-5 py-6 text-center text-sm text-zinc-500">{t.none}</li>}
+        {!shown.length && <li className="px-5 py-6 text-center text-sm text-zinc-600 dark:text-zinc-400">{t.none}</li>}
       </ul>
 
       <div className="flex flex-wrap items-center gap-2 border-t border-zinc-200 px-5 py-3 dark:border-zinc-800">
         <button className={btn} disabled={page === 0} onClick={() => setPage(page - 1)}>
           {t.prev}
         </button>
-        <span className="text-xs text-zinc-500 tabular-nums">
+        <span className="text-xs text-zinc-600 dark:text-zinc-400 tabular-nums">
           {page + 1} / {pages}
         </span>
         <button className={btn} disabled={page >= pages - 1} onClick={() => setPage(page + 1)}>

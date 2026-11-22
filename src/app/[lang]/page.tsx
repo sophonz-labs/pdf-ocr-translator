@@ -4,7 +4,7 @@ import { SiteHeader, TOOLS } from "@/components/site";
 import { PluginGuide } from "@/components/plugin-guide";
 import type { Metadata } from "next";
 import { DICT, type Lang } from "@/i18n";
-import { pageMeta } from "../og";
+import { pageMeta, SITE } from "../og";
 
 // Set once the extension is published (build env NEXT_PUBLIC_CWS_URL).
 const STORE_URL = process.env.NEXT_PUBLIC_CWS_URL;
@@ -17,8 +17,27 @@ export default async function Landing({ params }: PageProps<"/[lang]">) {
   const lang = (await params).lang as Lang;
   const t = DICT[lang];
   const L = t.landing;
+  // Structured data for search results: a free web app (and Chrome extension) by sophonz labs.
+  const ld = {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    name: "PDF OCR",
+    url: `${SITE}/${lang}/`,
+    description: t.meta.description,
+    inLanguage: lang,
+    applicationCategory: "UtilitiesApplication",
+    operatingSystem: "Any (web browser), Chrome",
+    browserRequirements: "Requires JavaScript and WebAssembly",
+    isAccessibleForFree: true,
+    offers: { "@type": "Offer", price: 0, priceCurrency: "USD" },
+    screenshot: `${SITE}/${lang}/og.png`,
+    image: `${SITE}/icon.svg`,
+    sameAs: ["https://github.com/sophonz-labs/pdf-ocr-translator", ...(STORE_URL ? [STORE_URL] : [])],
+    publisher: { "@type": "Organization", name: "sophonz labs (INOBS Inc.)", email: "contact@sophonz.ai" },
+  };
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 break-keep px-4 py-10 sm:py-14">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ld).replace(/</g, "\\u003c") }} />
       <SiteHeader
         lang={lang}
         right={
@@ -41,7 +60,7 @@ export default async function Landing({ params }: PageProps<"/[lang]">) {
               {L.addToChrome}
             </a>
           ) : (
-            <span className="rounded-lg bg-zinc-200 px-4 py-2.5 text-sm font-medium text-zinc-500 dark:bg-zinc-800">{L.storeSoon}</span>
+            <span className="rounded-lg bg-zinc-200 px-4 py-2.5 text-sm font-medium text-zinc-600 dark:text-zinc-400 dark:bg-zinc-800">{L.storeSoon}</span>
           )}
           <Link href={`/${lang}/tools`} className="rounded-lg border border-zinc-300 px-4 py-2.5 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800">
             {L.tryWeb}
@@ -50,7 +69,7 @@ export default async function Landing({ params }: PageProps<"/[lang]">) {
       </section>
 
       <section className="mt-24">
-        <h2 className="text-sm font-medium text-zinc-500">{L.stepsTitle}</h2>
+        <h2 className="text-sm font-medium text-zinc-600 dark:text-zinc-400">{L.stepsTitle}</h2>
         <ol className="mt-6 grid gap-6 sm:grid-cols-3">
           {L.steps.map((step, i) => (
             <li key={step.title}>
@@ -76,13 +95,13 @@ export default async function Landing({ params }: PageProps<"/[lang]">) {
                 →
               </span>
             </h2>
-            <p className="mt-2 text-sm leading-relaxed text-zinc-500">{t.tools[tab].desc}</p>
+            <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">{t.tools[tab].desc}</p>
           </Link>
         ))}
       </section>
 
       <section className="mt-24">
-        <h2 className="text-sm font-medium text-zinc-500">{L.featuresTitle}</h2>
+        <h2 className="text-sm font-medium text-zinc-600 dark:text-zinc-400">{L.featuresTitle}</h2>
         <div className="mt-6 grid gap-x-10 gap-y-8 sm:grid-cols-2">
           {L.features.map((f) => (
             <div key={f.title}>
