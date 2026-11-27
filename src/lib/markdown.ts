@@ -25,6 +25,7 @@ export function toMarkdown(book: Book) {
   const head = ["---", `title: ${yaml(book.title)}`, ...(book.author ? [`author: ${yaml(book.author)}`] : []), `lang: ${book.lang}`, "---"];
   const body = book.blocks.map((b) => {
     if (b.kind === "h1" || b.kind === "h2" || b.kind === "h3") return `${"#".repeat(+b.kind[1])} ${runs(b.runs.map((r) => ({ ...r, bold: false })))}`;
+    if (b.kind === "img") return `![](${b.src})`;
     if (b.kind === "note") return `<small>${runs(b.runs)}</small>`;
     // A paragraph starting like a heading, quote, list item or rule would turn into one.
     return runs(b.runs)

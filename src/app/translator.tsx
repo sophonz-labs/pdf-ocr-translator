@@ -12,7 +12,8 @@ type Mode = "replace" | "both";
 /** A book to translate: its paragraphs, and how to build the EPUB once translations are in. */
 export type Job = {
   name: string;
-  segments: { tag: string; text: string }[];
+  /** `src`: the text sent for translation when it differs from `text` (tagged inline formatting). */
+  segments: { tag: string; text: string; src?: string }[];
   build: (tr: (string | undefined)[], mode: Mode, lang: string) => Uint8Array;
   /** Where the book came from; the agent prompt describes each one's markup. */
   origin: "ocr" | "epub";
@@ -232,7 +233,7 @@ function Review({ job }: { job: Job }) {
     setNotice("");
     try {
       await translateTexts(
-        job.segments.map((s) => s.text),
+        job.segments.map((s) => s.src ?? s.text),
         target,
         {
           only,

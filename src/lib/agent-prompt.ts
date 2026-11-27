@@ -34,13 +34,13 @@ function ko(p: PromptInfo) {
   const both = p.mode === "both";
   const input =
     p.mode === "replace"
-      ? `- 원문 텍스트를 번역으로 바꾼 EPUB이다. 요소마다 첫 텍스트 노드에 번역이 들어 있고 나머지 텍스트 노드는 비어 있으며, \`lang="${t}"\`가 달려 있다. 인라인 서식과 각주 링크 텍스트가 사라졌을 수 있다.
+      ? `- 원문 텍스트를 번역으로 바꾼 EPUB이다. 요소마다 \`lang="${t}"\`가 달려 있다. 원문의 기울임, 굵게, 위첨자, 링크는 기계 번역이 태그를 지킨 곳에서는 번역으로 옮겨 두었지만, 빠지거나 자리가 어긋난 곳이 있을 수 있다.
 - 원문이 이 EPUB에 없다. 원문 EPUB이나 원서 PDF를 함께 받아 문단 순서대로 대조한다. 없으면 먼저 요청한다.`
       : p.origin === "ocr"
         ? `- 스캔 PDF를 OCR해서 만든 EPUB이다. 원문 블록(\`p\`, \`h1\`~\`h3\`, 각주 \`p.note\`) 바로 뒤에 번역 \`<p class="tr" lang="${t}">\`가 붙는다.
 - 원문은 OCR 결과라 오자가 있고, 쪽 머리나 쪽 번호가 일부 남았을 수 있다. 각주는 본문에서 떼어 \`p.note\`로 두었다.`
         : `- 원문 요소 바로 뒤에 같은 종류의 번역 요소가 붙는다(\`lang="${t}" style="opacity:.75"\`). \`li\`, \`td\`, \`th\`, \`dt\`, \`dd\`, \`figcaption\`, \`caption\`은 같은 요소 안 끝에 \`<br/><span lang="${t}">번역</span>\`으로 들어 있다.
-- 번역 쪽은 일반 텍스트다. 원문의 기울임, 굵게, 각주 링크가 빠져 있으니 교정하면서 원문을 보고 되살린다.`;
+- 원문의 기울임, 굵게, 위첨자, 링크는 기계 번역이 태그를 지킨 곳에서는 번역 쪽에도 옮겨 두었다. 빠지거나 자리가 어긋난 곳이 있을 수 있으니 교정하면서 원문과 대조해 바로잡는다.`;
 
   return `# 번역 교정 작업 지침
 
@@ -191,13 +191,13 @@ function en(p: PromptInfo) {
   const both = p.mode === "both";
   const input =
     p.mode === "replace"
-      ? `- An EPUB whose original text was replaced by the translation. In each element the translation sits in the first text node, the other text nodes are empty, and the element carries \`lang="${t}"\`. Inline formatting and footnote link text may be gone.
+      ? `- An EPUB whose original text was replaced by the translation. Each element carries \`lang="${t}"\`. Italics, bold, superscripts and links were carried into the translation where machine translation kept their tags, but some may be missing or misplaced.
 - The original is not in this EPUB. Get the original EPUB or source PDF as well and compare paragraph by paragraph. Ask for it first if you don't have it.`
       : p.origin === "ocr"
         ? `- An EPUB built by OCR from a scanned PDF. Each original block (\`p\`, \`h1\`–\`h3\`, footnote \`p.note\`) is followed directly by its translation \`<p class="tr" lang="${t}">\`.
 - The original is OCR output: expect typos, and possibly some leftover running heads or page numbers. Footnotes were split from the body into \`p.note\`.`
         : `- Each original element is followed directly by a translation element of the same kind (\`lang="${t}" style="opacity:.75"\`). In \`li\`, \`td\`, \`th\`, \`dt\`, \`dd\`, \`figcaption\` and \`caption\` the translation sits inside the element, at the end, as \`<br/><span lang="${t}">translation</span>\`.
-- Translations are plain text: italics, bold and footnote links from the original are missing. Restore them from the original while proofreading.`;
+- Italics, bold, superscripts and links from the original were carried into the translation where machine translation kept their tags. Some may be missing or misplaced: check them against the original while proofreading.`;
 
   return `# Translation proofreading instructions
 

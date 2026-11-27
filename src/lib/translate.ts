@@ -1,3 +1,4 @@
+import { hasTags, markRuns, parseRuns, stripTags } from "./inline.ts";
 import { lineText, type Block } from "./layout.ts";
 
 // Same keyless endpoint as the "Google (Free) - New" engine of bookfere/ebook-translator-calibre-plugin.
@@ -25,8 +26,7 @@ export async function translateText(text: string, target: string, f: Fetcher = f
     try {
       const r = await f(`${ENDPOINT}?${q}`, { signal });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      // Google sometimes answers with HTML for what looks like markup (a footnote number becomes <sup>1</sup>); we write plain text.
-      return ((await r.json()) as { translation: string }).translation.replace(/<\/?(sup|sub|b|i|em|strong|u|span)\b[^>]*>/gi, "");
+      return ((await r.json()) as { translation: string }).translation;
     } catch (e) {
       if (signal?.aborted || attempt >= 2) throw e;
       await new Promise((ok) => setTimeout(ok, 1000 * 2 ** attempt));
@@ -78,6 +78,8 @@ export async function translateTexts(texts: string[], target: string, opts: Opts
   const f = opts.fetch ?? fetch;
   const out: (string | undefined)[] = texts.map(() => undefined);
   const set = (i: number, t: string | undefined) => {
+    // Tagged paragraphs keep their tags; Google also adds some to plain ones (a footnote number becomes <sup>1</sup>), which go.
+    if (t && !hasTags(texts[i])) t = stripTags(t);
     out[i] = t;
     opts.onResult?.(i, t);
   };
@@ -133,8 +135,10 @@ export async function translateTexts(texts: string[], target: string, opts: Opts
   return out;
 }
 
-/** The text sent for translation for each block. */
+/** The text shown for each block. */
 export const blockTexts = (blocks: Block[]) => blocks.map((b) => lineText(b).replace(/\s+/g, " ").trim());
+/** The text sent for translation: tagged where the block mixes bold, italic or superscript. */
+export const blockSources = (blocks: Block[]) => blocks.map((b) => markRuns(b.runs, b.kind.startsWith("h")));
 
 /** Translated copies of the blocks: "replace" swaps the text, "both" keeps the original and adds the translation below it. */
 export function applyTranslations(blocks: Block[], tr: (string | undefined)[], mode: "replace" | "both"): Block[] {
@@ -142,6 +146,7 @@ export function applyTranslations(blocks: Block[], tr: (string | undefined)[], m
     const t = tr[i];
     if (!t) return b;
     if (mode === "both") return { ...b, tr: t };
+    if (hasTags(t)) return { ...b, runs: parseRuns(t) };
     // Inline styling cannot be mapped onto translated words; keep it only when it covers the whole block.
     const all = (k: "bold" | "italic") => b.runs.every((r) => r[k] || !r.text.trim());
     return { ...b, runs: [{ text: t, bold: all("bold") || undefined, italic: all("italic") || undefined }] };

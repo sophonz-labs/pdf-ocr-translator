@@ -1,4 +1,5 @@
 import { strToU8, zipSync, type Zippable } from "fflate";
+import { hasTags, parseRuns } from "./inline.ts";
 import { lineText, type Block, type Run } from "./layout.ts";
 
 /** A PDF bookmark: `level` 0 is top level; `top` is where it points on the page (PDF points from the top). */
@@ -7,9 +8,18 @@ export type TocEntry = { title: string; level: number; page: number; top: number
 /**
  * `trLang` is the language of `Block.tr`, the translation printed under the original.
  * `toc`: the PDF's bookmarks; when they point into the text, chapters and the table of contents follow them.
- * `cover`: a JPEG shown first and used as the library thumbnail.
+ * `cover`: a JPEG shown first and used as the library thumbnail. `images`: JPEGs for "img" blocks, by `src`.
  */
-export type Book = { title: string; author?: string; lang: string; trLang?: string; blocks: Block[]; toc?: TocEntry[]; cover?: Uint8Array };
+export type Book = {
+  title: string;
+  author?: string;
+  lang: string;
+  trLang?: string;
+  blocks: Block[];
+  toc?: TocEntry[];
+  cover?: Uint8Array;
+  images?: Map<string, Uint8Array>;
+};
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
@@ -45,6 +55,8 @@ h1 + p, h2 + p, h3 + p, .note + p { text-indent: 0; }
 p.note { font-size: .85em; text-indent: 0; margin: .6em 0; opacity: .85; }
 sup { font-size: .7em; line-height: 0; }
 p.tr { text-indent: 0; margin: .3em 0 .9em; opacity: .75; }
+figure { margin: 1em 0; text-align: center; page-break-inside: avoid; }
+figure img { max-width: 100%; }
 .cover { margin: 0; text-align: center; }
 .cover img { max-width: 100%; max-height: 100vh; }
 `;
@@ -125,7 +137,8 @@ export function buildEpub(book: Book): Uint8Array {
       .slice(c.start, c.end)
       .map((b, k) => {
         const id = anchors.has(c.start + k) ? ` id="b${c.start + k}"` : "";
-        const tr = b.tr ? `\n<p class="tr" lang="${book.trLang}" xml:lang="${book.trLang}">${esc(b.tr)}</p>` : "";
+        const tr = b.tr ? `\n<p class="tr" lang="${book.trLang}" xml:lang="${book.trLang}">${hasTags(b.tr) ? runsToHtml(parseRuns(b.tr)) : esc(b.tr)}</p>` : "";
+        if (b.kind === "img") return `<figure${id}><img src="${esc(b.src ?? "")}" alt=""/></figure>`;
         if (b.kind === "note") return `<p class="note"${id}>${runsToHtml(b.runs)}</p>${tr}`;
         // Headings are bold by CSS; per-run bold there is noise (e.g. only the Latin glyphs had a bold font).
         const runs = b.kind === "p" ? b.runs : b.runs.map((r) => ({ ...r, bold: false }));
@@ -144,6 +157,9 @@ export function buildEpub(book: Book): Uint8Array {
     );
   }
 
+  const pictures = [...new Set(book.blocks.flatMap((b) => (b.kind === "img" && b.src && book.images?.has(b.src) ? [b.src] : [])))];
+  for (const src of pictures) files[`OEBPS/${src}`] = book.images!.get(src)!;
+
   files["OEBPS/nav.xhtml"] = strToU8(xhtml(book.title, book.lang, `<nav epub:type="toc" id="toc"><h1>${esc(book.title)}</h1>\n${navList(entries)}\n</nav>`));
   const modified = new Date().toISOString().replace(/\.\d+Z$/, "Z");
   files["OEBPS/content.opf"] = strToU8(`<?xml version="1.0" encoding="UTF-8"?>
@@ -160,6 +176,7 @@ export function buildEpub(book: Book): Uint8Array {
     <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
     <item id="css" href="style.css" media-type="text/css"/>
 ${book.cover ? '    <item id="cover-image" href="cover.jpg" media-type="image/jpeg" properties="cover-image"/>\n    <item id="cover" href="cover.xhtml" media-type="application/xhtml+xml"/>\n' : ""}${chs.map((_, i) => `    <item id="c${i + 1}" href="${fileName(i)}" media-type="application/xhtml+xml"/>`).join("\n")}
+${pictures.map((src, i) => `    <item id="img${i + 1}" href="${esc(src)}" media-type="image/jpeg"/>`).join("\n")}
   </manifest>
   <spine>
 ${book.cover ? '    <itemref idref="cover"/>\n' : ""}${chs.map((_, i) => `    <itemref idref="c${i + 1}"/>`).join("\n")}

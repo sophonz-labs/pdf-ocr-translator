@@ -3,9 +3,11 @@
 
 export type Run = { text: string; bold?: boolean; italic?: boolean; sup?: boolean };
 export type TextLine = { runs: Run[]; x0: number; x1: number; top: number; bottom: number; size: number };
-export type PageLayout = { n: number; width: number; height: number; lines: TextLine[] };
-/** `top`: where the block starts on its page, so bookmarks pointing mid-page can find it. */
-export type Block = { kind: "h1" | "h2" | "h3" | "p" | "note"; runs: Run[]; page: number; top?: number; tr?: string };
+/** A picture cut out of the page, saved as `src` (a path inside the EPUB). Coordinates in PDF points. */
+export type Figure = { src: string; x0: number; x1: number; top: number; bottom: number };
+export type PageLayout = { n: number; width: number; height: number; lines: TextLine[]; figures?: Figure[] };
+/** `top`: where the block starts on its page, so bookmarks pointing mid-page can find it. `src`: an "img" block's picture. */
+export type Block = { kind: "h1" | "h2" | "h3" | "p" | "note" | "img"; runs: Run[]; page: number; top?: number; tr?: string; src?: string };
 
 /** A pdf.js text item reduced to what layout needs. `y` is the baseline. */
 export type Item = { text: string; x: number; y: number; w: number; size: number; bold: boolean; italic: boolean };
@@ -237,8 +239,14 @@ export function buildBlocks(input: PageLayout[]): Block[] {
   const closed = new Set<Block>();
 
   for (const p of pages) {
+    // Pictures go where they sit on the page; lines inside a picture (labels in a chart) are part of it.
+    const figs = [...(p.figures ?? [])].sort((a, b) => a.top - b.top);
+    const inside = (l: TextLine) => {
+      const [x, y] = [(l.x0 + l.x1) / 2, (l.top + l.bottom) / 2];
+      return figs.some((f) => x > f.x0 && x < f.x1 && y > f.top && y < f.bottom);
+    };
     // Keep the given reading order (tesseract/pdf.js emit columns one after another); sorting by y would interleave columns.
-    const lines = p.lines;
+    const lines = p.lines.filter((l) => !inside(l));
     const { left, right, lineGap } = stats.get(p.n)!;
     // Footnotes: the run of small lines after the last body-size line.
     let lastBody = -1;
@@ -248,9 +256,19 @@ export function buildBlocks(input: PageLayout[]): Block[] {
     let open: Block | null = null;
     let firstOnPage = true;
     let lastPara: { block: Block; line: TextLine } | null = null;
+    let fig = 0;
+    // Emits the pictures that start above `y`; a picture ends the paragraph before it.
+    const pictures = (y: number) => {
+      for (; fig < figs.length && figs[fig].top <= y; fig++) {
+        blocks.push({ kind: "img", runs: [], page: p.n, top: figs[fig].top, src: figs[fig].src });
+        open = null;
+        prev = null;
+      }
+    };
 
     lines.forEach((l, i) => {
       const note = lastBody >= 0 && i > lastBody && l.size < body * 0.88;
+      pictures(note ? Infinity : l.top); // pictures before the footnotes
       const kind: Block["kind"] = note ? "note" : isHeading(l, p.n) ? level(l) : "p";
       const next = lines[i + 1];
       const indented = l.x0 - left > l.size * 0.8 && (!next || next.x0 < l.x0 - l.size * 0.5);
@@ -275,6 +293,7 @@ export function buildBlocks(input: PageLayout[]): Block[] {
       if (kind === "p") lastPara = { block: open!, line: l };
       prev = l;
     });
+    pictures(Infinity);
     const end = lastPara as { block: Block; line: TextLine } | null;
     if (end && end.line.x1 < right - end.line.size * 2 && SENTENCE_END.test(lineText(end.line))) closed.add(end.block);
   }
@@ -284,7 +303,8 @@ export function buildBlocks(input: PageLayout[]): Block[] {
   const dropped = new Set<Block>();
   for (const { block, indented, prevIndex } of pageHeads) {
     let j = prevIndex - 1;
-    while (j >= 0 && (blocks[j].kind === "note" || dropped.has(blocks[j]))) j--;
+    // A paragraph continues past footnotes and pictures at the page break.
+    while (j >= 0 && (blocks[j].kind === "note" || blocks[j].kind === "img" || dropped.has(blocks[j]))) j--;
     const before = blocks[j];
     if (!before || before.kind !== "p" || before.page >= block.page || closed.has(before)) continue;
     const ended = SENTENCE_END.test(lineText(before));

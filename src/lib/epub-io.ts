@@ -1,5 +1,6 @@
 // Reads an existing EPUB's paragraphs and writes translations back into it. Browser only (DOMParser).
 import { strFromU8, strToU8, unzipSync, zipSync, type Zippable } from "fflate";
+import { buildNodes, hasTags, markElement, stripTags } from "./inline.ts";
 
 const XHTML = "http://www.w3.org/1999/xhtml";
 const BLOCK = "p,h1,h2,h3,h4,h5,h6,li,blockquote,dt,dd,td,th,figcaption,caption,pre,div,section,article,aside,header,footer";
@@ -7,7 +8,7 @@ const BLOCK = "p,h1,h2,h3,h4,h5,h6,li,blockquote,dt,dd,td,th,figcaption,caption,
 const INSIDE = new Set(["li", "td", "th", "dt", "dd", "figcaption", "caption"]);
 
 type Doc = { path: string; dom: Document; xmlDecl: boolean };
-export type Segment = { tag: string; text: string };
+export type Segment = { tag: string; text: string; src?: string };
 export type OpenEpub = { files: Record<string, Uint8Array>; opfPath: string; title: string; docs: Doc[]; segments: Segment[] };
 
 const resolve = (base: string, href: string) => decodeURIComponent(new URL(href, `http://x/${base}`).pathname.slice(1));
@@ -50,7 +51,7 @@ export function readEpub(bytes: Uint8Array): OpenEpub {
     }
   }
   const title = opf.getElementsByTagName("dc:title")[0]?.textContent?.trim() || "book";
-  const segments = els.map((el) => ({ tag: el.localName, text: el.textContent!.replace(/\s+/g, " ").trim() }));
+  const segments = els.map((el) => ({ tag: el.localName, text: el.textContent!.replace(/\s+/g, " ").trim(), src: markElement(el) }));
   return { files, opfPath, title, docs, segments };
 }
 
@@ -61,9 +62,17 @@ export function writeEpub(book: OpenEpub, tr: (string | undefined)[], mode: "rep
   const els = docs.flatMap((d) => [...d.dom.querySelectorAll(BLOCK)].filter((el) => !el.querySelector(BLOCK) && el.textContent?.trim()));
 
   els.forEach((el, i) => {
-    const t = tr[i];
-    if (!t) return;
+    const tagged = tr[i];
+    if (!tagged) return;
+    // Formatting tags come back as copies of the original's elements; if they can't, plain text.
+    const nodes = hasTags(tagged) && markElement(el) ? buildNodes(tagged, el, mode === "both") : null;
+    const t = stripTags(tagged);
     const ns = el.namespaceURI ?? XHTML;
+    if (mode === "replace" && nodes) {
+      el.replaceChildren(...nodes);
+      el.setAttribute("lang", lang);
+      return;
+    }
     if (mode === "replace") {
       // Put the text in the first text node and blank the rest, so images and the element itself stay.
       const walker = el.ownerDocument.createTreeWalker(el, NodeFilter.SHOW_TEXT);
@@ -78,7 +87,8 @@ export function writeEpub(book: OpenEpub, tr: (string | undefined)[], mode: "rep
     }
     const doc = el.ownerDocument;
     const span = doc.createElementNS(ns, INSIDE.has(el.localName) ? "span" : el.localName);
-    span.textContent = t;
+    if (nodes) span.replaceChildren(...nodes);
+    else span.textContent = t;
     span.setAttribute("lang", lang);
     span.setAttribute("style", "opacity:.75");
     if (INSIDE.has(el.localName)) {

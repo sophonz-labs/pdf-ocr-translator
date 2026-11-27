@@ -21,6 +21,7 @@ export function Tools({ initialTab, onLang }: { initialTab: ToolTab; onLang: (l:
   const [pages, setPages] = useState<Page[]>([]);
   const [ocrLang, setOcrLang] = useState("kor+eng");
   const [skipText, setSkipText] = useState(true);
+  const [figures, setFigures] = useState(true);
   const [range, setRange] = useState(""); // pages to read, e.g. "20-80"; empty = all
   const [running, setRunning] = useState(false);
   const [phase, setPhase] = useState<Phase>(""); // a key, so a language switch mid-run relabels it
@@ -61,6 +62,7 @@ export function Tools({ initialTab, onLang }: { initialTab: ToolTab; onLang: (l:
       result.current = await ocrPdf(f, {
         lang: ocrLang,
         skipText,
+        figures,
         pick: (total) => {
           const list = parsePages(range, total);
           if (!list) throw new Error(T.badRange(total));
@@ -96,7 +98,10 @@ export function Tools({ initialTab, onLang }: { initialTab: ToolTab; onLang: (l:
     try {
       if (kind === "pdf") save(await searchablePdf(r), `${r.name}-ocr.pdf`, "application/pdf");
       else if (kind === "epub") save(await epubFromOcr(r), `${r.name}.epub`, "application/epub+zip");
-      else save(new TextEncoder().encode(await markdownFromOcr(r)), `${r.name}.md`, "text/markdown");
+      else {
+        const { bytes, ext } = await markdownFromOcr(r);
+        save(bytes, `${r.name}.${ext}`, ext === "md" ? "text/markdown" : "application/zip");
+      }
     } catch (e) {
       setError(T.exportFailed(kind.toUpperCase(), e instanceof Error ? e.message : String(e)));
     } finally {
@@ -228,6 +233,11 @@ export function Tools({ initialTab, onLang }: { initialTab: ToolTab; onLang: (l:
           <input type="checkbox" className="peer sr-only" checked={skipText} disabled={running} onChange={(e) => setSkipText(e.target.checked)} />
           <span className="relative h-5 w-9 rounded-full bg-zinc-300 transition peer-checked:bg-blue-600 peer-focus-visible:ring-2 peer-focus-visible:ring-blue-500/40 after:absolute after:top-0.5 after:left-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow after:transition peer-checked:after:translate-x-4 dark:bg-zinc-700" />
           {T.skipText}
+        </label>
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
+          <input type="checkbox" className="peer sr-only" checked={figures} disabled={running} onChange={(e) => setFigures(e.target.checked)} />
+          <span className="relative h-5 w-9 rounded-full bg-zinc-300 transition peer-checked:bg-blue-600 peer-focus-visible:ring-2 peer-focus-visible:ring-blue-500/40 after:absolute after:top-0.5 after:left-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow after:transition peer-checked:after:translate-x-4 dark:bg-zinc-700" />
+          {T.figures}
         </label>
         <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
           {T.range}

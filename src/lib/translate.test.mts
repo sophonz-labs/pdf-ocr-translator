@@ -1,6 +1,7 @@
 // Run: pnpm test
 import assert from "node:assert/strict";
-import { applyTranslations, blockTexts, translateText, translateTexts } from "./translate.ts";
+import { markRuns, parseRuns } from "./inline.ts";
+import { applyTranslations, blockSources, blockTexts, translateTexts } from "./translate.ts";
 import type { Block } from "./layout.ts";
 
 const blocks: Block[] = [
@@ -55,8 +56,22 @@ const rep = applyTranslations(blocks, ["하나", "평범", "모두 굵게"], "re
 assert.deepEqual(rep[1].runs, [{ text: "평범", bold: undefined, italic: undefined }]);
 assert.deepEqual(rep[2].runs, [{ text: "모두 굵게", bold: true, italic: undefined }]);
 
-// Google returns a footnote number as <sup>1</sup>; the app writes plain text, so tags are dropped.
+// Google returns a footnote number as <sup>1</sup>: dropped from plain paragraphs, kept where we sent tags.
 const html = async () => new Response(JSON.stringify({ translation: "형성됩니다.<sup>1</sup> <b>a</b> 1 < 2" }));
-assert.equal(await translateText("x", "ko", html), "형성됩니다.1 a 1 < 2");
+assert.deepEqual(await translateTexts(["x"], "ko", { fetch: html }), ["형성됩니다.1 a 1 < 2"]);
+assert.deepEqual(await translateTexts(["<i>x</i>"], "ko", { fetch: html }), ["형성됩니다.<sup>1</sup> <b>a</b> 1 < 2"]);
 
+// Mixed styling goes out tagged and comes back as runs.
+const src = blockSources(blocks);
+assert.deepEqual(src, [undefined, "Plain <i>it</i>", undefined]);
+assert.equal(markRuns([{ text: "Title " }, { text: "bold", bold: true }], true), undefined, "headings ignore bold");
+assert.equal(markRuns([{ text: "a < b & " }, { text: "c", italic: true }, { text: "1", sup: true }]), "a &lt; b &amp; <i>c</i><sup>1</sup>");
+const rt = applyTranslations(blocks, [undefined, "평범한 <i>그것</i><sup>2</sup> &lt;x&gt;", undefined], "replace");
+assert.deepEqual(rt[1].runs, [{ text: "평범한 " }, { text: "그것", italic: true }, { text: "2", sup: true }, { text: " <x>" }]);
+assert.deepEqual(parseRuns("<b>굵게 <i>둘 다</i></b></i> 끝 <a>링크</a>"), [
+  { text: "굵게 ", bold: true },
+  { text: "둘 다", bold: true, italic: true },
+  { text: " 끝 " },
+  { text: "링크" },
+]);
 console.log("translate: ok");
