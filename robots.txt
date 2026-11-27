@@ -1,0 +1,5 @@
+User-Agent: *
+Allow: /
+
+Host: https://ocr.sophonz.com
+Sitemap: https://ocr.sophonz.com/sitemap.xml
