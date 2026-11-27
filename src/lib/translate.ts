@@ -67,6 +67,8 @@ type Opts = {
   onResult?: (i: number, t: string | undefined) => void;
   fetch?: Fetcher;
   signal?: AbortSignal;
+  /** Another translator (the browser's on-device one): called per paragraph, no batching, no retries. */
+  engine?: (text: string) => Promise<string>;
 };
 
 /**
@@ -90,7 +92,7 @@ export async function translateTexts(texts: string[], target: string, opts: Opts
   let size = 0;
   for (const i of todo) {
     const b = bytes(texts[i]) + 6;
-    if (cur.length && size + b > MAX_BYTES) {
+    if (cur.length && (opts.engine || size + b > MAX_BYTES)) {
       batches.push(cur);
       cur = [];
       size = 0;
@@ -103,7 +105,7 @@ export async function translateTexts(texts: string[], target: string, opts: Opts
   const one = async (i: number) => {
     try {
       const parts = [];
-      for (const p of pieces(texts[i])) parts.push(await translateText(p, target, f, opts.signal, opts.source));
+      for (const p of pieces(texts[i])) parts.push(await (opts.engine ? opts.engine(p) : translateText(p, target, f, opts.signal, opts.source)));
       set(i, parts.join(" "));
     } catch (e) {
       if (opts.signal?.aborted) throw e;

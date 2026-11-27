@@ -2,6 +2,7 @@
 import type { TocEntry } from "@/lib/epub";
 import { findFigures, type Box } from "@/lib/figures";
 import type { Figure, PageLayout } from "@/lib/layout";
+import type { SavedPage } from "@/lib/store";
 import type { Line } from "./searchable-pdf";
 import type { Job } from "./translator";
 
@@ -103,6 +104,10 @@ export async function ocrPdf(
     skipText: boolean;
     /** Cut pictures out of the pages for the EPUB (renders text-layer pages that contain images). */
     figures: boolean;
+    /** Pages finished in an earlier run of this file: used as they are, not read again. */
+    restore?: Map<number, SavedPage>;
+    /** Called with each page as it's finished, to keep it for a later run. */
+    persist?: (n: number, p: SavedPage) => void;
     /** The pages to read out of `total`; throw to refuse (e.g. a range past the end). */
     pick: (total: number) => number[];
     cancelled: () => boolean;
@@ -157,6 +162,19 @@ export async function ocrPdf(
         const n = pages[next++];
         at = n;
         const start = performance.now();
+        const old = opts.restore?.get(n);
+        if (old) {
+          result.layouts.set(n, old.layout);
+          if (old.lines) result.lines.set(n, old.lines);
+          for (const [src, b] of old.images) result.images.set(src, b);
+          opts.onPage(n, { status: old.status, progress: 1, text: old.text, ms: old.ms });
+          continue;
+        }
+        const keep = (status: SavedPage["status"], text: string) => {
+          const layout = result.layouts.get(n)!;
+          const images = (layout.figures ?? []).flatMap((f) => (result.images.has(f.src) ? [[f.src, result.images.get(f.src)!] as [string, Uint8Array]] : []));
+          opts.persist?.(n, { status, text, ms: performance.now() - start, lines: result.lines.get(n), layout, images });
+        };
         try {
           const page = await pdf.getPage(n);
           const vp = page.getViewport({ scale: 1 });
@@ -174,6 +192,7 @@ export async function ocrPdf(
                 canvas.width = canvas.height = 0;
               }
               result.layouts.set(n, { n, width: vp.width, height: vp.height, lines, figures });
+              keep("text", text);
               opts.onPage(n, { status: "text", progress: 1, text, ms: performance.now() - start });
               continue;
             }
@@ -230,6 +249,7 @@ export async function ocrPdf(
             })),
             figures,
           });
+          keep("done", text);
           opts.onPage(n, { status: "done", progress: 1, text, ms: performance.now() - start });
         } catch (e) {
           console.error(`page ${n}`, e);

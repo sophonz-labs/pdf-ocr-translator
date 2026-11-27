@@ -23,6 +23,8 @@ export function Tools({ initialTab, onLang }: { initialTab: ToolTab; onLang: (l:
   const [skipText, setSkipText] = useState(true);
   const [figures, setFigures] = useState(true);
   const [range, setRange] = useState(""); // pages to read, e.g. "20-80"; empty = all
+  const [restored, setRestored] = useState(0); // pages taken from an earlier run of the same file
+  const lastFile = useRef<File | null>(null);
   const [running, setRunning] = useState(false);
   const [phase, setPhase] = useState<Phase>(""); // a key, so a language switch mid-run relabels it
   const [error, setError] = useState("");
@@ -45,12 +47,18 @@ export function Tools({ initialTab, onLang }: { initialTab: ToolTab; onLang: (l:
   const update = (n: number, patch: Partial<Page>) =>
     setPages((ps) => ps.map((p) => (p.n === n ? { ...p, ...patch } : p)));
 
-  async function run(f: File) {
+  async function run(f: File, fresh = false) {
     if (running) return;
     setRunning(true);
     setError("");
     setPages([]);
     setMade(null);
+    setRestored(0);
+    lastFile.current = f;
+    const { clearPages, fileKey, loadPages, savePage } = await import("@/lib/store");
+    const key = fileKey(f);
+    if (fresh) await clearPages(key, ocrLang);
+    const restore = await loadPages(key, ocrLang);
     setFile({ name: f.name, size: f.size });
     cancelled.current = false;
     // eslint-disable-next-line react-hooks/purity -- runs in an event handler, not during render
@@ -68,8 +76,11 @@ export function Tools({ initialTab, onLang }: { initialTab: ToolTab; onLang: (l:
           if (!list) throw new Error(T.badRange(total));
           return list;
         },
+        restore,
+        persist: (n, p) => void savePage(key, ocrLang, n, p),
         cancelled: () => cancelled.current,
         onOpen: (list, laneCount) => {
+          setRestored(list.filter((n) => restore.has(n)).length);
           setPages(list.map((n) => ({ n, status: "pending", progress: 0, text: "" })));
           setLanes(laneCount);
           setPhase("working");
@@ -263,6 +274,19 @@ export function Tools({ initialTab, onLang }: { initialTab: ToolTab; onLang: (l:
                 {avg > 0 && ` · ${T.perPage((avg / lanes / 1000).toFixed(2))}`}
                 {eta > 0 && ` · ${T.eta(Math.ceil(eta))}`}
               </p>
+              {restored > 0 && (
+                <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-400">
+                  {T.restored(restored)}
+                  {!running && (
+                    <>
+                      {" · "}
+                      <button className="underline" onClick={() => lastFile.current && run(lastFile.current, true)}>
+                        {T.startOver}
+                      </button>
+                    </>
+                  )}
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-3">
               {running && (

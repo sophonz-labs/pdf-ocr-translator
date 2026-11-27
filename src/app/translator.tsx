@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { COMMON_LANGS, LANGS } from "@/lib/translate";
 import type { Lang } from "@/i18n";
 import { useLang, useT } from "@/i18n-context";
@@ -204,6 +204,12 @@ function Review({ job }: { job: Job }) {
   const [built, setBuilt] = useState<PromptInfo | null>(null); // the last EPUB built, for the agent prompt
   const n = job.segments.length;
   const [source, setSource] = useState("auto");
+  const [engine, setEngine] = useState<"google" | "device">("google");
+  const device = useSyncExternalStore(
+    () => () => {},
+    () => "Translator" in self,
+    () => false,
+  );
   const [target, setTarget] = useState<string>(useLang()); // into the UI language unless changed
   const [mode, setMode] = useState<Mode>("both");
   const [tr, setTr] = useState<(string | undefined)[]>(() => Array(n).fill(undefined));
@@ -214,6 +220,41 @@ function Review({ job }: { job: Job }) {
   const [progress, setProgress] = useState<[number, number] | null>(null);
   const [notice, setNotice] = useState("");
   const abort = useRef<AbortController | null>(null);
+
+  // Kept in this browser: opening the same book again brings the translations back.
+  const saveKey = useMemo(() => import("@/lib/store").then((m) => ({ m, key: m.jobKey(job.name, job.segments.map((s) => s.text)) })), [job]);
+  const [loaded, setLoaded] = useState(false);
+  const [resumed, setResumed] = useState(0);
+  useEffect(() => {
+    let live = true;
+    saveKey.then(async ({ m, key }) => {
+      const j = await m.loadJob(key);
+      if (!live) return;
+      if (j?.tr.length === n) {
+        setSource(j.source);
+        setTarget(j.target);
+        setMode(j.mode);
+        setTr(j.tr);
+        setSt(j.st as St[]);
+        setResumed(j.tr.filter(Boolean).length);
+      }
+      setLoaded(true);
+    });
+    return () => {
+      live = false;
+    };
+  }, [saveKey, n]);
+  useEffect(() => {
+    if (!loaded) return;
+    const h = setTimeout(() => saveKey.then(({ m, key }) => (tr.some(Boolean) ? m.saveJob(key, { source, target, mode, tr, st }) : m.clearJob(key))), 800);
+    return () => clearTimeout(h);
+  }, [loaded, saveKey, source, target, mode, tr, st]);
+  function discard() {
+    if (!confirm(t.discardConfirm)) return;
+    setTr(Array(n).fill(undefined));
+    setSt(Array(n).fill(""));
+    setResumed(0);
+  }
 
   const done = st.filter((s) => s === "ok" || s === "edit").length;
   const failed = st.filter((s) => s === "fail").length;
@@ -232,12 +273,27 @@ function Review({ job }: { job: Job }) {
     abort.current = ctl;
     setNotice("");
     try {
+      let run: ((s: string) => Promise<string>) | undefined;
+      if (engine === "device") {
+        const { onDeviceEngine, OnDeviceError } = await import("@/lib/on-device");
+        setProgress([0, only.length]);
+        const sample = only.slice(0, 20).map((i) => job.segments[i].text).join("\n");
+        try {
+          run = await onDeviceEngine(source, target, sample, (p) => setNotice(t.downloading(Math.round(p * 100))), ctl.signal);
+          setNotice("");
+        } catch (e) {
+          if (e instanceof OnDeviceError) return setNotice(t.onDeviceError[e.reason]);
+          throw e;
+        }
+      }
       await translateTexts(
-        job.segments.map((s) => s.src ?? s.text),
+        // The on-device translator gets plain text: tagged words come back untranslated (Chrome 158).
+        job.segments.map((s) => (run ? s.text : (s.src ?? s.text))),
         target,
         {
           only,
           source,
+          engine: run,
           signal: ctl.signal,
           onProgress: (d, t) => setProgress([d, t]),
           onResult: (i, t) => {
@@ -301,10 +357,27 @@ function Review({ job }: { job: Job }) {
         <LangSelect label={t.source} value={source} onChange={setSource} auto disabled={!!progress} />
         <span aria-hidden className="text-zinc-400">→</span>
         <LangSelect label={t.target} value={target} onChange={changeTarget} disabled={!!progress} />
+        {device && (
+          <label className="flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-400">
+            {t.engine}
+            <select value={engine} disabled={!!progress} onChange={(e) => setEngine(e.target.value as "google" | "device")} className={`${select} text-zinc-900 dark:text-zinc-100`}>
+              <option value="google">{t.google}</option>
+              <option value="device">{t.onDevice}</option>
+            </select>
+          </label>
+        )}
         <span className="ml-auto text-xs text-zinc-600 dark:text-zinc-400 tabular-nums">
           {t.count(done, n)}
           {failed > 0 && <span className="text-red-600"> · {t.failedCount(failed)}</span>}
         </span>
+        {resumed > 0 && (
+          <p className="w-full text-xs text-zinc-600 dark:text-zinc-400">
+            {t.resumed(resumed)} ·{" "}
+            <button className="underline" disabled={!!progress} onClick={discard}>
+              {t.discard}
+            </button>
+          </p>
+        )}
       </div>
       <div className="flex flex-wrap items-center gap-2 px-5 py-3">
         <button className={primary} disabled={!!progress || !todo.length} onClick={() => translate(todo)}>

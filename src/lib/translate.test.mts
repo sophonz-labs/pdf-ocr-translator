@@ -74,4 +74,10 @@ assert.deepEqual(parseRuns("<b>굵게 <i>둘 다</i></b></i> 끝 <a>링크</a>")
   { text: " 끝 " },
   { text: "링크" },
 ]);
+// Another engine: one paragraph per call.
+const asked: string[] = [];
+tr = await translateTexts(texts, "ko", { engine: async (s) => (asked.push(s), s.toLowerCase()) });
+assert.deepEqual(tr, ["one", "plain it", "all bold"]);
+assert.deepEqual(asked, texts);
+
 console.log("translate: ok");

@@ -20,7 +20,7 @@ const BODY: Record<Lang, ReactNode> = {
   en: (
     <>
       <h1>Privacy policy</h1>
-      <p className="text-zinc-500">Effective November 23, 2026 · Applies to the PDF OCR website and Chrome extension</p>
+      <p className="text-zinc-500">Effective November 27, 2026 · Applies to the PDF OCR website and Chrome extension</p>
       <h2>What we process</h2>
       <p>
         The PDF and EPUB files you choose are processed only inside your browser. Text recognition (OCR) and building searchable PDFs and EPUBs all happen on
@@ -31,6 +31,10 @@ const BODY: Record<Lang, ReactNode> = {
       <p>
         Only when you start a translation is the text of the paragraphs to translate sent to Google Translate (translate-pa.googleapis.com). The file itself is
         not sent. Text sent there is handled under Google&rsquo;s privacy policy. If you don&rsquo;t translate, no text leaves your device.
+      </p>
+      <p>
+        In Chrome you can choose the browser&rsquo;s built-in translator instead. It translates on your device with a model Chrome downloads, and no text is sent
+        to us or to Google Translate.
       </p>
       {analyticsOn && (
         <>
@@ -49,7 +53,12 @@ const BODY: Record<Lang, ReactNode> = {
       </ul>
       <p>The extension does not read other websites&rsquo; content, your browsing history, or tab information.</p>
       <h2>Retention</h2>
-      <p>Files and translations in progress disappear when you close or reload the page. Only the files you download are kept.</p>
+      <p>
+        The PDF or EPUB you open is not stored. So that long work can continue after the page is closed, recognized pages (text, layout and cut-out pictures)
+        and translations in progress are kept in your browser&rsquo;s storage (IndexedDB) on this device, and are used again when you open the same file. They
+        are never sent anywhere. Work left untouched for 30 days is deleted automatically; you can delete it sooner from the tool (&ldquo;Read them
+        again&rdquo;, &ldquo;Discard them&rdquo;) or by clearing this site&rsquo;s data in your browser.
+      </p>
       <h2>Contact</h2>
       <p>INOBS Inc. · {mail}</p>
     </>
@@ -57,7 +66,7 @@ const BODY: Record<Lang, ReactNode> = {
   ko: (
     <>
       <h1>개인정보처리방침</h1>
-      <p className="text-zinc-500">시행일 2026년 11월 23일 · 적용 대상: PDF OCR 웹사이트와 Chrome 확장 프로그램</p>
+      <p className="text-zinc-500">시행일 2026년 11월 27일 · 적용 대상: PDF OCR 웹사이트와 Chrome 확장 프로그램</p>
       <h2>처리하는 정보</h2>
       <p>
         사용자가 고른 PDF와 EPUB 파일은 브라우저 안에서만 처리합니다. 텍스트 인식(OCR), 검색 가능한 PDF와 EPUB 만들기는 모두 이 기기에서 일어나며, 파일과 인식한
@@ -67,6 +76,9 @@ const BODY: Record<Lang, ReactNode> = {
       <p>
         사용자가 번역을 시작했을 때만, 번역할 문단의 텍스트를 Google 번역(translate-pa.googleapis.com)으로 보냅니다. 파일 자체는 보내지 않습니다. 보낸 텍스트는 Google의
         개인정보처리방침에 따라 처리됩니다. 번역을 쓰지 않으면 어떤 텍스트도 외부로 나가지 않습니다.
+      </p>
+      <p>
+        Chrome에서는 브라우저 내장 번역기를 대신 고를 수 있습니다. Chrome이 내려받은 모델로 기기 안에서 번역하며, 텍스트를 저희나 Google 번역으로 보내지 않습니다.
       </p>
       {analyticsOn && (
         <>
@@ -85,7 +97,11 @@ const BODY: Record<Lang, ReactNode> = {
       </ul>
       <p>다른 웹사이트의 내용, 방문 기록, 탭 정보는 읽지 않습니다.</p>
       <h2>보관</h2>
-      <p>작업 중인 파일과 번역은 페이지를 닫거나 새로 고치면 사라집니다. 저장은 사용자가 내려받은 파일로만 남습니다.</p>
+      <p>
+        사용자가 연 PDF나 EPUB 파일 자체는 저장하지 않습니다. 긴 작업을 페이지를 닫은 뒤에도 이어 할 수 있도록, 인식을 마친 페이지(텍스트, 배치, 잘라 낸 그림)와 진행
+        중인 번역을 이 기기의 브라우저 저장소(IndexedDB)에 보관하고, 같은 파일을 다시 열면 이어서 씁니다. 이 정보는 어디로도 전송하지 않습니다. 30일 동안 다시 쓰지
+        않은 작업은 자동으로 지우며, 그 전에 도구 화면(&lsquo;다시 인식&rsquo;, &lsquo;지우기&rsquo;)이나 브라우저의 사이트 데이터 삭제로 지울 수 있습니다.
+      </p>
       <h2>문의</h2>
       <p>주식회사 아이놉스(INOBS Inc.) · {mail}</p>
     </>
