@@ -4,7 +4,8 @@
 export type Run = { text: string; bold?: boolean; italic?: boolean; sup?: boolean };
 export type TextLine = { runs: Run[]; x0: number; x1: number; top: number; bottom: number; size: number };
 export type PageLayout = { n: number; width: number; height: number; lines: TextLine[] };
-export type Block = { kind: "h1" | "h2" | "h3" | "p" | "note"; runs: Run[]; page: number; tr?: string };
+/** `top`: where the block starts on its page, so bookmarks pointing mid-page can find it. */
+export type Block = { kind: "h1" | "h2" | "h3" | "p" | "note"; runs: Run[]; page: number; top?: number; tr?: string };
 
 /** A pdf.js text item reduced to what layout needs. `y` is the baseline. */
 export type Item = { text: string; x: number; y: number; w: number; size: number; bold: boolean; italic: boolean };
@@ -261,7 +262,7 @@ export function buildBlocks(input: PageLayout[]): Block[] {
 
       if (continues) joinRuns(open!.runs, l.runs, join);
       else {
-        open = { kind, runs: l.runs.map((r) => ({ ...r })), page: p.n };
+        open = { kind, runs: l.runs.map((r) => ({ ...r })), page: p.n, top: l.top };
         if (kind === "p") {
           paraStarts++;
           if (indented) indentStarts++;

@@ -4,7 +4,8 @@ import { useRef, useState } from "react";
 import { SiteHeader, TOOLS, type ToolTab } from "@/components/site";
 import type { Lang } from "@/i18n";
 import { useLang, useT } from "@/i18n-context";
-import { epubFromOcr, jobFromOcr, ocrPdf, searchablePdf, type OcrResult, type Page, type Status } from "./ocr";
+import { parsePages } from "@/lib/page-range";
+import { epubFromOcr, jobFromOcr, markdownFromOcr, ocrPdf, searchablePdf, type OcrResult, type Page, type Status } from "./ocr";
 import { save } from "./save";
 import { jobFromEpub, Translator, type Job } from "./translator";
 
@@ -20,12 +21,13 @@ export function Tools({ initialTab, onLang }: { initialTab: ToolTab; onLang: (l:
   const [pages, setPages] = useState<Page[]>([]);
   const [ocrLang, setOcrLang] = useState("kor+eng");
   const [skipText, setSkipText] = useState(true);
+  const [range, setRange] = useState(""); // pages to read, e.g. "20-80"; empty = all
   const [running, setRunning] = useState(false);
   const [phase, setPhase] = useState<Phase>(""); // a key, so a language switch mid-run relabels it
   const [error, setError] = useState("");
   const [elapsed, setElapsed] = useState(0);
   const [file, setFile] = useState<{ name: string; size: number } | null>(null);
-  const [exporting, setExporting] = useState<"pdf" | "epub" | null>(null);
+  const [exporting, setExporting] = useState<Export | null>(null);
   const [copied, setCopied] = useState(false);
   const [job, setJob] = useState<Job | null>(null);
   const [tab, setTabState] = useState<ToolTab>(initialTab);
@@ -59,9 +61,14 @@ export function Tools({ initialTab, onLang }: { initialTab: ToolTab; onLang: (l:
       result.current = await ocrPdf(f, {
         lang: ocrLang,
         skipText,
+        pick: (total) => {
+          const list = parsePages(range, total);
+          if (!list) throw new Error(T.badRange(total));
+          return list;
+        },
         cancelled: () => cancelled.current,
-        onOpen: (total, laneCount) => {
-          setPages(Array.from({ length: total }, (_, i) => ({ n: i + 1, status: "pending", progress: 0, text: "" })));
+        onOpen: (list, laneCount) => {
+          setPages(list.map((n) => ({ n, status: "pending", progress: 0, text: "" })));
           setLanes(laneCount);
           setPhase("working");
         },
@@ -82,13 +89,14 @@ export function Tools({ initialTab, onLang }: { initialTab: ToolTab; onLang: (l:
     }
   }
 
-  async function exportAs(kind: "pdf" | "epub") {
+  async function exportAs(kind: Export) {
     const r = result.current;
     if (!r) return;
     setExporting(kind);
     try {
       if (kind === "pdf") save(await searchablePdf(r), `${r.name}-ocr.pdf`, "application/pdf");
-      else save(await epubFromOcr(r), `${r.name}.epub`, "application/epub+zip");
+      else if (kind === "epub") save(await epubFromOcr(r), `${r.name}.epub`, "application/epub+zip");
+      else save(new TextEncoder().encode(await markdownFromOcr(r)), `${r.name}.md`, "text/markdown");
     } catch (e) {
       setError(T.exportFailed(kind.toUpperCase(), e instanceof Error ? e.message : String(e)));
     } finally {
@@ -221,6 +229,17 @@ export function Tools({ initialTab, onLang }: { initialTab: ToolTab; onLang: (l:
           <span className="relative h-5 w-9 rounded-full bg-zinc-300 transition peer-checked:bg-blue-600 peer-focus-visible:ring-2 peer-focus-visible:ring-blue-500/40 after:absolute after:top-0.5 after:left-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow after:transition peer-checked:after:translate-x-4 dark:bg-zinc-700" />
           {T.skipText}
         </label>
+        <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
+          {T.range}
+          <input
+            value={range}
+            disabled={running}
+            onChange={(e) => setRange(e.target.value)}
+            placeholder={T.rangeAll}
+            inputMode="numeric"
+            className="w-36 rounded-md border border-zinc-200 bg-transparent px-2 py-1 text-sm placeholder:text-zinc-400 dark:border-zinc-700"
+          />
+        </label>
       </div>
 
       {total > 0 && (
@@ -303,7 +322,7 @@ export function Tools({ initialTab, onLang }: { initialTab: ToolTab; onLang: (l:
               <button onClick={toTranslator} disabled={running} className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm hover:bg-zinc-50 disabled:opacity-40 dark:border-zinc-700 dark:hover:bg-zinc-800">
                 {T.toTranslate}
               </button>
-              {(["pdf", "epub"] as const).map((k) => (
+              {(["pdf", "epub", "md"] as const).map((k) => (
                 <button
                   key={k}
                   onClick={() => exportAs(k)}
@@ -313,7 +332,7 @@ export function Tools({ initialTab, onLang }: { initialTab: ToolTab; onLang: (l:
                   <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v12m0 0 4-4m-4 4-4-4M4 20h16" />
                   </svg>
-                  {exporting === k ? T.making : k === "pdf" ? T.searchablePdf : "EPUB"}
+                  {exporting === k ? T.making : k === "pdf" ? T.searchablePdf : k === "epub" ? "EPUB" : "Markdown"}
                 </button>
               ))}
             </div>
@@ -340,6 +359,8 @@ export function Tools({ initialTab, onLang }: { initialTab: ToolTab; onLang: (l:
   );
 }
 
+
+type Export = "pdf" | "epub" | "md";
 
 const TILE: Record<Status, string> = {
   pending: "bg-zinc-100 text-zinc-400 ring-1 ring-zinc-200 ring-inset dark:bg-zinc-800 dark:text-zinc-500 dark:ring-zinc-700",

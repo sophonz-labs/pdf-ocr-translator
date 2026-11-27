@@ -1,4 +1,5 @@
 // The PDF → text pipeline, shared by the OCR tab and the one-shot routine. Browser only.
+import type { TocEntry } from "@/lib/epub";
 import type { PageLayout } from "@/lib/layout";
 import type { Line } from "./searchable-pdf";
 import type { Job } from "./translator";
@@ -14,7 +15,48 @@ export type OcrResult = {
   author?: string;
   lines: Map<number, Line[]>;
   layouts: Map<number, PageLayout>;
+  /** The PDF's bookmarks, for EPUB chapters and table of contents. */
+  toc: TocEntry[];
+  /** Page 1 as a JPEG, for the EPUB cover. */
+  cover?: Uint8Array;
 };
+
+type Pdf = Awaited<ReturnType<typeof import("pdfjs-dist/legacy/build/pdf.mjs").getDocument>["promise"]>;
+
+/** Bookmarks with the page and spot each one points to (top-down PDF points). Broken destinations are skipped. */
+async function readToc(pdf: Pdf): Promise<TocEntry[]> {
+  const out: TocEntry[] = [];
+  const walk = async (items: Awaited<ReturnType<Pdf["getOutline"]>> | null, level: number) => {
+    for (const it of items ?? []) {
+      try {
+        const dest = typeof it.dest === "string" ? await pdf.getDestination(it.dest) : it.dest;
+        if (dest?.[0]) {
+          const n = (typeof dest[0] === "number" ? dest[0] : await pdf.getPageIndex(dest[0])) + 1;
+          const height = (await pdf.getPage(n)).getViewport({ scale: 1 }).height;
+          // [page, /XYZ left top zoom] or [page, /FitH top]: top counts up from the bottom; other kinds mean the page top.
+          const y = dest[1]?.name === "XYZ" ? dest[3] : /^FitB?H$/.test(dest[1]?.name ?? "") ? dest[2] : null;
+          out.push({ title: it.title, level, page: n, top: typeof y === "number" ? Math.max(0, height - y) : 0 });
+        }
+      } catch {}
+      if (level < 2) await walk(it.items, level + 1);
+    }
+  };
+  await walk(await pdf.getOutline().catch(() => null), 0);
+  return out;
+}
+
+/** Page 1 rendered about 1200px wide as a JPEG. */
+async function coverJpeg(pdf: Pdf) {
+  const page = await pdf.getPage(1);
+  const viewport = page.getViewport({ scale: Math.min(2.5, 1200 / page.getViewport({ scale: 1 }).width) });
+  const canvas = document.createElement("canvas");
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  await page.render({ canvas, viewport }).promise;
+  const blob = await new Promise<Blob | null>((ok) => canvas.toBlob(ok, "image/jpeg", 0.85));
+  canvas.width = canvas.height = 0;
+  return blob ? new Uint8Array(await blob.arrayBuffer()) : undefined;
+}
 
 const SCALE = 2.5; // render scale for OCR: ~180 dpi on a letter page, enough for body text
 const MIN_CONFIDENCE = 65;
@@ -24,8 +66,10 @@ export async function ocrPdf(
   opts: {
     lang: string;
     skipText: boolean;
+    /** The pages to read out of `total`; throw to refuse (e.g. a range past the end). */
+    pick: (total: number) => number[];
     cancelled: () => boolean;
-    onOpen: (pages: number, lanes: number) => void;
+    onOpen: (pages: number[], lanes: number) => void;
     onPage: (n: number, patch: Partial<Page>) => void;
     /** Recognition progress of a page being OCR'd (may arrive late; callers ignore pages already finished). */
     onProgress: (n: number, progress: number) => void;
@@ -41,7 +85,7 @@ export async function ocrPdf(
   const workers: OcrWorker[] = [];
 
   const bytes = await f.arrayBuffer();
-  const result: OcrResult = { name: f.name.replace(/\.pdf$/i, ""), bytes, lines: new Map(), layouts: new Map() };
+  const result: OcrResult = { name: f.name.replace(/\.pdf$/i, ""), bytes, lines: new Map(), layouts: new Map(), toc: [] };
   try {
     // pdf.js detaches the buffer it is given, so hand it a copy and keep the original for export.
     const pdf = await pdfjs.getDocument({
@@ -56,18 +100,21 @@ export async function ocrPdf(
     const info = (await pdf.getMetadata().catch(() => null))?.info as { Title?: string; Author?: string } | undefined;
     result.title = info?.Title?.trim() || undefined;
     result.author = info?.Author?.trim() || undefined;
+    const pages = opts.pick(pdf.numPages);
+    result.toc = await readToc(pdf);
+    result.cover = await coverJpeg(pdf).catch(() => undefined);
 
     // One tesseract worker per lane; each holds its own copy of the models (~100MB+), so cap it.
-    const laneCount = Math.max(1, Math.min(4, (navigator.hardwareConcurrency || 2) - 1));
-    opts.onOpen(pdf.numPages, laneCount);
-    let next = 1;
+    const laneCount = Math.max(1, Math.min(4, (navigator.hardwareConcurrency || 2) - 1, pages.length));
+    opts.onOpen(pages, laneCount);
+    let next = 0;
 
     const lane = async () => {
       let worker: OcrWorker | null = null;
       let at = 0;
       while (!opts.cancelled()) {
-        const n = next++;
-        if (n > pdf.numPages) return;
+        if (next >= pages.length) return;
+        const n = pages[next++];
         at = n;
         const start = performance.now();
         try {
@@ -161,7 +208,17 @@ export async function epubFromOcr(r: OcrResult) {
   const { buildBlocks } = await import("@/lib/layout");
   const { buildEpub, guessLang } = await import("@/lib/epub");
   const blocks = buildBlocks([...r.layouts.values()]);
-  return buildEpub({ title: r.title ?? r.name, author: r.author, lang: guessLang(blocks), blocks });
+  return buildEpub({ ...bookOf(r), lang: guessLang(blocks), blocks });
+}
+
+const bookOf = (r: OcrResult) => ({ title: r.title ?? r.name, author: r.author, toc: r.toc, cover: r.cover });
+
+export async function markdownFromOcr(r: OcrResult) {
+  const { buildBlocks } = await import("@/lib/layout");
+  const { guessLang } = await import("@/lib/epub");
+  const { toMarkdown } = await import("@/lib/markdown");
+  const blocks = buildBlocks([...r.layouts.values()]);
+  return toMarkdown({ ...bookOf(r), lang: guessLang(blocks), blocks });
 }
 
 /** The OCR result as a translation job (paragraphs rebuilt the same way as the EPUB export). */
@@ -180,7 +237,7 @@ export async function jobFromOcr(r: OcrResult): Promise<Job> {
       const all: (string | undefined)[] = Array(blocks.length);
       keep.forEach((i, k) => (all[i] = tr[k]));
       const out = applyTranslations(blocks, all, mode);
-      return buildEpub({ title: r.title ?? r.name, author: r.author, lang: mode === "replace" ? lang : guessLang(blocks), trLang: lang, blocks: out });
+      return buildEpub({ ...bookOf(r), lang: mode === "replace" ? lang : guessLang(blocks), trLang: lang, blocks: out });
     },
   };
 }
