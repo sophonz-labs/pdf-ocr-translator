@@ -15,6 +15,8 @@ export type Job = {
   /** `src`: the text sent for translation when it differs from `text` (tagged inline formatting). */
   segments: { tag: string; text: string; src?: string }[];
   build: (tr: (string | undefined)[], mode: Mode, lang: string) => Uint8Array;
+  /** The original PDF with the translations written over the text (OCR jobs only: they know where each paragraph sits). */
+  pdf?: (tr: (string | undefined)[]) => Promise<Uint8Array>;
   /** Where the book came from; the agent prompt describes each one's markup. */
   origin: "ocr" | "epub";
 };
@@ -327,6 +329,18 @@ function Review({ job }: { job: Job }) {
     }
   }
 
+  const [pdfBusy, setPdfBusy] = useState(false);
+  async function buildPdf() {
+    setPdfBusy(true);
+    try {
+      save(await job.pdf!(tr), `${job.name}.${target}.pdf`, "application/pdf");
+    } catch (e) {
+      setNotice(t.pdfFailed(e instanceof Error ? e.message : String(e)));
+    } finally {
+      setPdfBusy(false);
+    }
+  }
+
   const toggle = (i: number) =>
     setSel((s) => {
       const c = new Set(s);
@@ -480,6 +494,11 @@ function Review({ job }: { job: Job }) {
             <option value="both">{t.both}</option>
             <option value="replace">{t.replace}</option>
           </select>
+          {job.pdf && (
+            <button className={btn} disabled={!done || !!progress || pdfBusy} onClick={buildPdf}>
+              {t.buildPdf}
+            </button>
+          )}
           <button className={primary} disabled={!done || !!progress} onClick={build}>
             {t.build}
           </button>

@@ -6,8 +6,13 @@ export type TextLine = { runs: Run[]; x0: number; x1: number; top: number; botto
 /** A picture cut out of the page, saved as `src` (a path inside the EPUB). Coordinates in PDF points. */
 export type Figure = { src: string; x0: number; x1: number; top: number; bottom: number };
 export type PageLayout = { n: number; width: number; height: number; lines: TextLine[]; figures?: Figure[] };
-/** `top`: where the block starts on its page, so bookmarks pointing mid-page can find it. `src`: an "img" block's picture. */
-export type Block = { kind: "h1" | "h2" | "h3" | "p" | "note" | "img"; runs: Run[]; page: number; top?: number; tr?: string; src?: string };
+/** Where one of a block's lines sits, in PDF points from the page's top left. */
+export type LineBox = { page: number; x0: number; x1: number; top: number; bottom: number; size: number };
+/**
+ * `top`: where the block starts on its page, so bookmarks pointing mid-page can find it. `src`: an "img" block's picture.
+ * `boxes`: its lines on the page, for writing a translation over the original.
+ */
+export type Block = { kind: "h1" | "h2" | "h3" | "p" | "note" | "img"; runs: Run[]; page: number; top?: number; tr?: string; src?: string; boxes?: LineBox[] };
 
 /** A pdf.js text item reduced to what layout needs. `y` is the baseline. */
 export type Item = { text: string; x: number; y: number; w: number; size: number; bold: boolean; italic: boolean };
@@ -278,9 +283,12 @@ export function buildBlocks(input: PageLayout[]): Block[] {
       const continues =
         open && open.kind === kind && (sameHeading || (!kind.startsWith("h") && gap > 0 && gap < Math.max(lineGap, prev!.size * 1.1) * 1.4 && !indented && !prevShort));
 
-      if (continues) joinRuns(open!.runs, l.runs, join);
-      else {
-        open = { kind, runs: l.runs.map((r) => ({ ...r })), page: p.n, top: l.top };
+      const box = { page: p.n, x0: l.x0, x1: l.x1, top: l.top, bottom: l.bottom, size: l.size };
+      if (continues) {
+        joinRuns(open!.runs, l.runs, join);
+        open!.boxes!.push(box);
+      } else {
+        open = { kind, runs: l.runs.map((r) => ({ ...r })), page: p.n, top: l.top, boxes: [box] };
         if (kind === "p") {
           paraStarts++;
           if (indented) indentStarts++;
@@ -310,6 +318,7 @@ export function buildBlocks(input: PageLayout[]): Block[] {
     const ended = SENTENCE_END.test(lineText(before));
     if (!indented && (usesIndent || !ended)) {
       joinRuns(before.runs, block.runs, join);
+      before.boxes?.push(...(block.boxes ?? []));
       dropped.add(block);
     }
   }

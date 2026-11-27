@@ -312,5 +312,12 @@ export async function jobFromOcr(r: OcrResult): Promise<Job> {
       const out = applyTranslations(blocks, all, mode);
       return buildEpub({ ...bookOf(r), lang: mode === "replace" ? lang : guessLang(blocks), trLang: lang, blocks: out });
     },
+    pdf: async (tr) => {
+      const [{ buildTranslatedPdf }, { stripTags }] = await Promise.all([import("@/lib/translated-pdf"), import("@/lib/inline")]);
+      const all: (string | undefined)[] = Array(blocks.length);
+      keep.forEach((i, k) => (all[i] = tr[k] && stripTags(tr[k])));
+      const font = await fetch("/fonts/NanumGothic-Regular.ttf").then((x) => x.arrayBuffer());
+      return buildTranslatedPdf(r.bytes, blocks, all, font);
+    },
   };
 }

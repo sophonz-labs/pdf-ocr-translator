@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "postinstall": "node scripts/copy-assets.mjs",
-    "test": "node src/lib/layout.test.mts && node src/lib/epub.test.mts && node src/lib/translate.test.mts && node src/lib/agent-prompt.test.mts && node src/lib/markdown.test.mts && node src/lib/figures.test.mts",
+    "test": "node src/lib/layout.test.mts && node src/lib/epub.test.mts && node src/lib/translate.test.mts && node src/lib/agent-prompt.test.mts && node src/lib/markdown.test.mts && node src/lib/figures.test.mts && node src/lib/translated-pdf.test.mts",
     "build:extension": "node scripts/build-extension.mjs"
   },
   "dependencies": {
